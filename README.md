@@ -27,6 +27,16 @@ npm install expo-meta-wearables-dat
 
 Run `npx pod-install` after installing the npm package.
 
+# Releases
+
+This project uses [semantic-release](https://github.com/semantic-release/semantic-release) with [Conventional Commits](https://www.conventionalcommits.org/). Versioning is automated based on commit messages:
+
+- `fix:` → patch release
+- `feat:` → minor release
+- `feat!:` or `BREAKING CHANGE:` footer → major release
+
+Releases are triggered manually via the `Release package` GitHub Actions workflow.
+
 # Contributing
 
 Contributions are very welcome! Please refer to guidelines described in the [contributing guide](https://github.com/expo/expo#contributing).
