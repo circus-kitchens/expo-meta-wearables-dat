@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["ExpoMetaWearablesDatModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.metawearablesdat.ExpoMetaWearablesDatModule"]
+  }
+}

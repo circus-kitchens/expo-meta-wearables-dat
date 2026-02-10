@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "expo-meta-wearables-dat": ["../src/index"],
+      "expo-meta-wearables-dat/*": ["../src/*"]
+    }
+  }
+}
