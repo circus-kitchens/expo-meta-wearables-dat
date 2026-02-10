@@ -21,7 +21,7 @@
     "react-native",
     "expo",
     "expo-meta-wearables-dat",
-    "ExpoMetaWearablesDat"
+    "EMWDAT"
   ],
   "repository": "https://github.com/circus-kitchens/expo-meta-wearables-dat",
   "bugs": {

@@ -1,25 +1,26 @@
-import { useEvent } from 'expo';
-import ExpoMetaWearablesDat, { ExpoMetaWearablesDatView } from 'expo-meta-wearables-dat';
-import { Button, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { useEvent } from "expo";
+import EMWDAT, { EMWDATView } from "expo-meta-wearables-dat";
+import { Button, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function App() {
-  const onChangePayload = useEvent(ExpoMetaWearablesDat, 'onChange');
+  const onChangePayload = useEvent(EMWDAT, "onChange");
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.container}>
         <Text style={styles.header}>Module API Example</Text>
         <Group name="Constants">
-          <Text>{ExpoMetaWearablesDat.PI}</Text>
+          <Text>{EMWDAT.PI}</Text>
         </Group>
         <Group name="Functions">
-          <Text>{ExpoMetaWearablesDat.hello()}</Text>
+          <Text>{EMWDAT.hello()}</Text>
         </Group>
         <Group name="Async functions">
           <Button
             title="Set value"
             onPress={async () => {
-              await ExpoMetaWearablesDat.setValueAsync('Hello from JS!');
+              await EMWDAT.setValueAsync("Hello from JS!");
             }}
           />
         </Group>
@@ -27,7 +28,7 @@ export default function App() {
           <Text>{onChangePayload?.value}</Text>
         </Group>
         <Group name="Views">
-          <ExpoMetaWearablesDatView
+          <EMWDATView
             url="https://www.example.com"
             onLoad={({ nativeEvent: { url } }) => console.log(`Loaded: ${url}`)}
             style={styles.view}
@@ -58,13 +59,13 @@ const styles = {
   },
   group: {
     margin: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 20,
   },
   container: {
     flex: 1,
-    backgroundColor: '#eee',
+    backgroundColor: "#eee",
   },
   view: {
     flex: 1,

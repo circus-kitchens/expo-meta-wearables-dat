@@ -4,7 +4,7 @@ export type OnLoadEventPayload = {
   url: string;
 };
 
-export type ExpoMetaWearablesDatModuleEvents = {
+export type EMWDATModuleEvents = {
   onChange: (params: ChangeEventPayload) => void;
 };
 
@@ -12,7 +12,7 @@ export type ChangeEventPayload = {
   value: string;
 };
 
-export type ExpoMetaWearablesDatViewProps = {
+export type EMWDATViewProps = {
   url: string;
   onLoad: (event: { nativeEvent: OnLoadEventPayload }) => void;
   style?: StyleProp<ViewStyle>;

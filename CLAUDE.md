@@ -30,19 +30,19 @@ All scripts delegate to `expo-module` CLI from `expo-module-scripts`.
 This is an **Expo Module** with native implementations on three platforms:
 
 - **TypeScript API** (`src/`): Module definition, types, and platform-specific `.web.ts` files
-  - `ExpoMetaWearablesDatModule.ts` — loads native module via JSI (`requireNativeModule`)
-  - `ExpoMetaWearablesDatModule.web.ts` — web fallback via `registerWebModule`
-  - `ExpoMetaWearablesDatView.tsx` / `.web.tsx` — native view component (wraps WebView)
-  - `ExpoMetaWearablesDat.types.ts` — shared TypeScript types
+  - `EMWDATModule.ts` — loads native module via JSI (`requireNativeModule`)
+  - `EMWDATModule.web.ts` — web fallback via `registerWebModule`
+  - `EMWDATView.tsx` / `.web.tsx` — native view component (wraps WebView)
+  - `EMWDAT.types.ts` — shared TypeScript types
   - `index.ts` — public API re-exports
 
 - **iOS** (`ios/`): Swift using ExpoModulesCore
-  - `ExpoMetaWearablesDatModule.swift` — module definition (Name, Constants, Events, Functions, View)
-  - `ExpoMetaWearablesDatView.swift` — ExpoView subclass wrapping WKWebView
+  - `EMWDATModule.swift` — module definition (Name, Constants, Events, Functions, View)
+  - `EMWDATView.swift` — ExpoView subclass wrapping WKWebView
 
 - **Android** (`android/`): Kotlin using expo-modules-kotlin
-  - `ExpoMetaWearablesDatModule.kt` — module definition (same pattern as iOS)
-  - `ExpoMetaWearablesDatView.kt` — ExpoView subclass wrapping Android WebView
+  - `EMWDATModule.kt` — module definition (same pattern as iOS)
+  - `EMWDATView.kt` — ExpoView subclass wrapping Android WebView
 
 - **Config** (`expo-module.config.json`): Maps native module classes per platform
 
@@ -50,8 +50,8 @@ The `example/` directory contains a standalone Expo app that imports the module 
 
 ## Key Patterns
 
-- Native module name registered as `"ExpoMetaWearablesDat"` across all platforms
+- Native module name registered as `"EMWDAT"` across all platforms
 - Platform-specific files use `.web.ts`/`.web.tsx` suffix convention (resolved by Metro/webpack)
 - Module exposes: constants (`PI`), sync functions (`hello`), async functions (`setValueAsync`), events (`onChange`), and a native view
-- Android package: `expo.modules.metawearablesdat`
+- Android package: `expo.modules.emwdat`
 - Build output goes to `build/` (configured in tsconfig.json)

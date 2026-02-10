@@ -1,8 +1,8 @@
 import * as React from "react";
 
-import { ExpoMetaWearablesDatViewProps } from "./ExpoMetaWearablesDat.types";
+import { EMWDATViewProps } from "./EMWDAT.types";
 
-export default function ExpoMetaWearablesDatView(props: ExpoMetaWearablesDatViewProps) {
+export default function EMWDATView(props: EMWDATViewProps) {
   return (
     <div>
       <iframe

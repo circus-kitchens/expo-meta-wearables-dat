@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "expo.modules.metawearablesdat.example"
+      "bundleIdentifier": "expo.modules.emwdat.example"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +23,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "expo.modules.metawearablesdat.example"
+      "package": "expo.modules.emwdat.example"
     },
     "web": {
       "favicon": "./assets/favicon.png"
