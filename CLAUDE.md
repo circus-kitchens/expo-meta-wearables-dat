@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Expo native module (`expo-meta-wearables-dat`) for integrating Meta AI glasses (Meta Wearables DAT) into Expo/React Native apps.
 - Built with the [Expo Modules API](https://docs.expo.dev/modules/module-api/). Currently scaffolded from the Expo module template — native functionality is placeholder.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) enforced by commitlint + husky; releases are automated via semantic-release on push to `main`.
+- Contains an example React Native + expo app in `./example`.
 
 ## Commands
 
@@ -29,7 +30,6 @@ All scripts delegate to `expo-module` CLI from `expo-module-scripts`.
 This is an **Expo Module** with native implementations on three platforms:
 
 - **TypeScript API** (`src/`): Module definition, types, and platform-specific `.web.ts` files
-
   - `ExpoMetaWearablesDatModule.ts` — loads native module via JSI (`requireNativeModule`)
   - `ExpoMetaWearablesDatModule.web.ts` — web fallback via `registerWebModule`
   - `ExpoMetaWearablesDatView.tsx` / `.web.tsx` — native view component (wraps WebView)
@@ -37,12 +37,10 @@ This is an **Expo Module** with native implementations on three platforms:
   - `index.ts` — public API re-exports
 
 - **iOS** (`ios/`): Swift using ExpoModulesCore
-
   - `ExpoMetaWearablesDatModule.swift` — module definition (Name, Constants, Events, Functions, View)
   - `ExpoMetaWearablesDatView.swift` — ExpoView subclass wrapping WKWebView
 
 - **Android** (`android/`): Kotlin using expo-modules-kotlin
-
   - `ExpoMetaWearablesDatModule.kt` — module definition (same pattern as iOS)
   - `ExpoMetaWearablesDatView.kt` — ExpoView subclass wrapping Android WebView
 

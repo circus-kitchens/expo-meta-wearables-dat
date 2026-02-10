@@ -8,15 +8,9 @@ importers:
 
   .:
     dependencies:
-      expo:
-        specifier: ~54.0.33
-        version: 54.0.33(@babel/core@7.29.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react:
-        specifier: 19.1.0
+        specifier: '*'
         version: 19.1.0
-      react-native:
-        specifier: 0.81.5
-        version: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
     devDependencies:
       '@commitlint/cli':
         specifier: ^20.4.1
@@ -45,12 +39,18 @@ importers:
       '@types/react':
         specifier: ~19.1.0
         version: 19.1.17
+      expo:
+        specifier: ^54.0.27
+        version: 54.0.33(@babel/core@7.29.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-module-scripts:
         specifier: ^5.0.8
         version: 5.0.8(@babel/core@7.29.0)(@babel/runtime@7.28.6)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(eslint@9.39.2(jiti@2.6.1))(expo@54.0.33(@babel/core@7.29.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(jest@29.7.0(@types/node@25.2.2))(prettier@2.8.8)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react-refresh@0.14.2)(react-test-renderer@19.1.0(react@19.1.0))(react@19.1.0)
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      react-native:
+        specifier: 0.81.5
+        version: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
       semantic-release:
         specifier: ^25.0.3
         version: 25.0.3(typescript@5.9.3)
