@@ -1,15 +1,15 @@
-import { registerWebModule, NativeModule } from 'expo';
+import { registerWebModule, NativeModule } from "expo";
 
-import { ExpoMetaWearablesDatModuleEvents } from './ExpoMetaWearablesDat.types';
+import { ExpoMetaWearablesDatModuleEvents } from "./ExpoMetaWearablesDat.types";
 
 class ExpoMetaWearablesDatModule extends NativeModule<ExpoMetaWearablesDatModuleEvents> {
   PI = Math.PI;
   async setValueAsync(value: string): Promise<void> {
-    this.emit('onChange', { value });
+    this.emit("onChange", { value });
   }
   hello() {
-    return 'Hello world! 👋';
+    return "Hello world! 👋";
   }
 }
 
-export default registerWebModule(ExpoMetaWearablesDatModule, 'ExpoMetaWearablesDatModule');
+export default registerWebModule(ExpoMetaWearablesDatModule, "ExpoMetaWearablesDatModule");

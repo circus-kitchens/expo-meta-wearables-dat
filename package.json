@@ -1,6 +1,7 @@
 {
   "name": "expo-meta-wearables-dat",
   "version": "0.0.1",
+  "type": "module",
   "description": "This package enables developers to utilize Meta's AI glasses (Meta Wearables DAT) in Expo + React Native applications.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -29,7 +30,6 @@
   "author": "Circus Group <fabricio_ext@circuskitchens.com> (https://github.com/circus-kitchens/)",
   "license": "MIT",
   "homepage": "https://github.com/circus-kitchens/expo-meta-wearables-dat#readme",
-  "dependencies": {},
   "devDependencies": {
     "@commitlint/cli": "^20.4.1",
     "@commitlint/config-conventional": "^20.4.1",
@@ -40,9 +40,14 @@
     "@semantic-release/github": "^12.0.5",
     "@semantic-release/release-notes-generator": "^14.1.0",
     "@types/react": "~19.1.0",
+    "eslint": "^9.39.2",
+    "eslint-config-universe": "^15.0.3",
     "expo": "^54.0.27",
     "expo-module-scripts": "^5.0.8",
     "husky": "^9.1.7",
+    "jiti": "^2.6.1",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
     "react-native": "0.81.5",
     "semantic-release": "^25.0.3",
     "semantic-release-pnpm": "^1.0.2",
@@ -53,5 +58,9 @@
     "react": "*",
     "react-native": "*"
   },
-  "packageManager": "pnpm@10.29.2"
+  "packageManager": "pnpm@10.29.2",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": "eslint --fix",
+    "*.{js,jsx,ts,tsx,json,md}": "prettier --write"
+  }
 }

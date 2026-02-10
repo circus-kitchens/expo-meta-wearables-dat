@@ -1,6 +1,6 @@
-import * as React from 'react';
+import * as React from "react";
 
-import { ExpoMetaWearablesDatViewProps } from './ExpoMetaWearablesDat.types';
+import { ExpoMetaWearablesDatViewProps } from "./ExpoMetaWearablesDat.types";
 
 export default function ExpoMetaWearablesDatView(props: ExpoMetaWearablesDatViewProps) {
   return (

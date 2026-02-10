@@ -1,10 +1,10 @@
-import { requireNativeView } from 'expo';
-import * as React from 'react';
+import { requireNativeView } from "expo";
+import * as React from "react";
 
-import { ExpoMetaWearablesDatViewProps } from './ExpoMetaWearablesDat.types';
+import { ExpoMetaWearablesDatViewProps } from "./ExpoMetaWearablesDat.types";
 
 const NativeView: React.ComponentType<ExpoMetaWearablesDatViewProps> =
-  requireNativeView('ExpoMetaWearablesDat');
+  requireNativeView("ExpoMetaWearablesDat");
 
 export default function ExpoMetaWearablesDatView(props: ExpoMetaWearablesDatViewProps) {
   return <NativeView {...props} />;
