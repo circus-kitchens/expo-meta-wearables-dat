@@ -1,4 +1,9 @@
-import { type ConfigPlugin, withInfoPlist, withXcodeProject } from "expo/config-plugins";
+import {
+  type ConfigPlugin,
+  IOSConfig,
+  withInfoPlist,
+  withPodfileProperties,
+} from "expo/config-plugins";
 
 type EMWDATPluginProps = {
   /** URL scheme for Meta AI app callback (required). Do not include "://". */
@@ -11,10 +16,6 @@ type EMWDATPluginProps = {
   bluetoothUsageDescription?: string;
 };
 
-/**
- * Adds a string to an Info.plist string array, creating the array if needed.
- * Only adds if not already present.
- */
 function addUniqueStringToArray(plist: Record<string, any>, key: string, value: string): void {
   const arr: string[] = plist[key] ?? [];
   if (!arr.includes(value)) {
@@ -22,25 +23,6 @@ function addUniqueStringToArray(plist: Record<string, any>, key: string, value: 
   }
   plist[key] = arr;
 }
-
-/** Shell script that embeds MWDAT dynamic frameworks into the app bundle. */
-const EMBED_MWDAT_SCRIPT = `
-# Embed Meta Wearables DAT dynamic frameworks (MWDATCamera, MWDATCore)
-FRAMEWORKS_DIR="\${BUILT_PRODUCTS_DIR}/\${FRAMEWORKS_FOLDER_PATH}"
-mkdir -p "\${FRAMEWORKS_DIR}"
-
-for fw in MWDATCamera MWDATCore; do
-  SRC="\${BUILT_PRODUCTS_DIR}/\${fw}.framework"
-  if [ -d "\${SRC}" ]; then
-    rsync -av --delete "\${SRC}/" "\${FRAMEWORKS_DIR}/\${fw}.framework/"
-    if [ "\${CODE_SIGNING_ALLOWED}" != "NO" ] && [ -n "\${EXPANDED_CODE_SIGN_IDENTITY}" ]; then
-      /usr/bin/codesign --force --sign "\${EXPANDED_CODE_SIGN_IDENTITY}" --preserve-metadata=identifier,entitlements "\${FRAMEWORKS_DIR}/\${fw}.framework"
-    fi
-  fi
-done
-`;
-
-const EMBED_PHASE_NAME = "[EMWDAT] Embed Frameworks";
 
 const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
   let urlScheme = props.urlScheme;
@@ -57,39 +39,17 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
   const bluetoothDescription =
     props.bluetoothUsageDescription ?? "This app uses Bluetooth to connect to Meta Wearables.";
 
-  // Embed MWDAT dynamic frameworks via a shell script build phase
-  config = withXcodeProject(config, (config) => {
-    const project = config.modResults;
-    const target = project.getFirstTarget()?.firstTarget;
-    if (!target) return config;
-
-    // Avoid duplicate phases
-    const phases = target.buildPhases ?? [];
-    const alreadyAdded = phases.some((p: any) => p.comment === EMBED_PHASE_NAME);
-    if (!alreadyAdded) {
-      project.addBuildPhase([], "PBXShellScriptBuildPhase", EMBED_PHASE_NAME, target.uuid, {
-        shellPath: "/bin/sh",
-        shellScript: EMBED_MWDAT_SCRIPT,
-      });
-    }
-
+  // Set iOS deployment target to 16.0 (required by Meta Wearables DAT SDK)
+  config = withPodfileProperties(config, (config) => {
+    config.modResults["ios.deploymentTarget"] = "16.0";
     return config;
   });
 
   return withInfoPlist(config, (config) => {
     const plist = config.modResults;
 
-    // CFBundleURLTypes — merge new URL scheme entry if not already present
-    const urlTypes = plist.CFBundleURLTypes ?? [];
-    const existingSchemes = urlTypes.flatMap(
-      (entry: { CFBundleURLSchemes?: string[] }) => entry.CFBundleURLSchemes ?? []
-    );
-    if (!existingSchemes.includes(urlScheme)) {
-      urlTypes.push({
-        CFBundleURLSchemes: [urlScheme],
-      });
-    }
-    plist.CFBundleURLTypes = urlTypes;
+    // URL scheme for Meta AI app callback
+    IOSConfig.Scheme.appendScheme(urlScheme, plist);
 
     // LSApplicationQueriesSchemes — needed to discover Meta AI app
     addUniqueStringToArray(plist, "LSApplicationQueriesSchemes", "fb-viewapp");
