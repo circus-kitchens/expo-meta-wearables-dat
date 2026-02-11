@@ -36,6 +36,16 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **EventEmitter typealias**: Defined in `WearablesManager.swift`, shared by `StreamSessionManager.swift`. `FrameCallback` typealias defined in `StreamSessionManager.swift`.
 - **Build note**: These files won't compile standalone — they depend on MWDATCore/MWDATCamera SPM packages (configured in step 7) and are consumed by EMWDATModule.swift (step 4).
 
+## Step 4 Decisions
+
+- **Event emitter setup**: Both `WearablesManager` and `StreamSessionManager` emitters set in `OnCreate` (v0.3 set stream emitter in `startStream` — OnCreate is cleaner, no missed events).
+- **handleUrl threading**: Calls `Wearables.shared.handleUrl(url)` directly (bypassing @MainActor manager) since `Function` runs on JS thread. SDK's URL routing is expected to be thread-safe. If issues surface at runtime, switch to AsyncFunction.
+- **getRegistrationState (sync)**: Returns hardcoded `"unavailable"` — @MainActor state can't be accessed synchronously from JS thread. Hook uses `getRegistrationStateAsync()` on mount + events for updates.
+- **Mapping helpers**: Duplicated in module (private methods) rather than exposing manager mappings — keeps managers unchanged, follows v0.3 pattern. Only 3 mappers needed for async getters.
+- **View definition**: Included now referencing `EMWDATStreamView` (step 6). Contract: `setActive(_ isActive: Bool)` and `setResizeMode(_ mode: String)` methods. Won't compile until step 6+7.
+- **AsyncFunction pattern**: All @MainActor calls use explicit `Promise` + `Task { @MainActor in }` pattern (proven v0.3 approach). Expo's `.runOnQueue(.main)` doesn't satisfy Swift's @MainActor isolation.
+- **Build note**: References `EMWDATStreamView` (step 6). Same SPM dependency requirement as step 3 (step 7).
+
 ---
 
 ## Native SDK API (MWDAT 0.4)
