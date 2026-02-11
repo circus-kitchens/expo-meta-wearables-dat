@@ -111,13 +111,14 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
         syncRegistrationState(e.state);
         callbacksRef.current.onRegistrationStateChange?.(e.state);
 
-        // Auto-sync permission status on registration change
+        // Auto-sync permission and stream status on registration change
         if (e.state === "registered") {
           nativeCheckPermissionStatus("camera")
             .then((status) => syncPermissionStatus(status))
             .catch(() => syncPermissionStatus("denied"));
         } else {
           syncPermissionStatus("denied");
+          syncStreamState("stopped");
         }
       }),
 

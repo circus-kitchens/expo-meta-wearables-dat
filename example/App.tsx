@@ -3,6 +3,8 @@ import type {
   Device,
   StreamSessionError,
   PhotoData,
+  PhotoCaptureFormat,
+  StreamingResolution,
   StreamSessionState,
   RegistrationState,
   PermissionStatus,
@@ -17,6 +19,9 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 export default function App() {
   const [lastPhoto, setLastPhoto] = useState<PhotoData | null>(null);
+  const [resolution, setResolution] = useState<StreamingResolution>("low");
+  const [frameRate, setFrameRate] = useState<number>(15);
+  const [photoFormat, setPhotoFormat] = useState<PhotoCaptureFormat>("jpeg");
 
   const {
     // State
@@ -115,6 +120,7 @@ export default function App() {
               />
               <Btn
                 label="Unregister"
+                variant="destructive"
                 onPress={safe(startUnregistration)}
                 disabled={!isConfigured || registrationState !== "registered"}
               />
@@ -156,10 +162,29 @@ export default function App() {
 
           {/* Streaming */}
           <Section title="Streaming">
+            {permissionStatus !== "granted" && (
+              <Text style={[styles.hint, { marginBottom: 8 }]}>
+                Camera permission required to start streaming.
+              </Text>
+            )}
+            <Text style={styles.optionLabel}>Resolution</Text>
+            <OptionRow
+              options={RESOLUTIONS}
+              selected={resolution}
+              onSelect={(v) => setResolution(v as StreamingResolution)}
+              disabled={streamState === "streaming" || streamState === "starting"}
+            />
+            <Text style={styles.optionLabel}>Frame Rate</Text>
+            <OptionRow
+              options={FRAME_RATES}
+              selected={String(frameRate)}
+              onSelect={(v) => setFrameRate(Number(v))}
+              disabled={streamState === "streaming" || streamState === "starting"}
+            />
             <Row>
               <Btn
                 label="Start Stream"
-                onPress={safe(() => startStream())}
+                onPress={safe(() => startStream({ resolution, frameRate, videoCodec: "raw" }))}
                 disabled={
                   !isConfigured ||
                   registrationState !== "registered" ||
@@ -170,13 +195,21 @@ export default function App() {
               />
               <Btn
                 label="Stop Stream"
+                variant="destructive"
                 onPress={safe(stopStream)}
                 disabled={streamState === "stopped"}
               />
             </Row>
+
+            <Text style={styles.optionLabel}>Photo Format</Text>
+            <OptionRow
+              options={PHOTO_FORMATS}
+              selected={photoFormat}
+              onSelect={(v) => setPhotoFormat(v as PhotoCaptureFormat)}
+            />
             <Btn
-              label="Capture Photo (JPEG)"
-              onPress={safe(() => capturePhoto("jpeg"))}
+              label={`Capture Photo (${photoFormat.toUpperCase()})`}
+              onPress={safe(() => capturePhoto(photoFormat))}
               disabled={streamState !== "streaming"}
             />
 
@@ -217,7 +250,8 @@ export default function App() {
               <Text style={styles.filePath} numberOfLines={2}>
                 {lastPhoto.filePath}
               </Text>
-              <Btn label="Delete Photo" onPress={() => setLastPhoto(null)} />
+              <View style={{ height: 8 }} />
+              <Btn variant="destructive" label="Delete Photo" onPress={() => setLastPhoto(null)} />
             </Section>
           )}
 
@@ -242,6 +276,29 @@ export default function App() {
 }
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+const RESOLUTIONS = [
+  { label: "Low\n360x640", value: "low" },
+  { label: "Med\n504x896", value: "medium" },
+  { label: "High\n720x1280", value: "high" },
+];
+
+const FRAME_RATES = [
+  { label: "2", value: "2" },
+  { label: "7", value: "7" },
+  { label: "15", value: "15" },
+  { label: "24", value: "24" },
+  { label: "30", value: "30" },
+];
+
+const PHOTO_FORMATS = [
+  { label: "JPEG", value: "jpeg" },
+  { label: "HEIC", value: "heic" },
+];
+
+// =============================================================================
 // Components
 // =============================================================================
 
@@ -258,23 +315,69 @@ function Row({ children }: { children: React.ReactNode }) {
   return <View style={styles.row}>{children}</View>;
 }
 
+function OptionRow({
+  options,
+  selected,
+  onSelect,
+  disabled,
+}: {
+  options: { label: string; value: string }[];
+  selected: string;
+  onSelect: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={styles.optionRow}>
+      {options.map((opt) => {
+        const active = opt.value === selected;
+        return (
+          <Pressable
+            key={opt.value}
+            onPress={() => onSelect(opt.value)}
+            disabled={disabled}
+            style={[
+              styles.optionChip,
+              active && styles.optionChipActive,
+              disabled && styles.optionChipDisabled,
+            ]}
+          >
+            <Text
+              style={[
+                styles.optionChipText,
+                active && styles.optionChipTextActive,
+                disabled && styles.optionChipTextDisabled,
+              ]}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function Btn({
   label,
   onPress,
   disabled,
+  variant,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  variant?: "default" | "destructive";
 }) {
+  const isDestructive = variant === "destructive";
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.btn,
+        isDestructive && styles.btnDestructive,
         disabled && styles.btnDisabled,
-        pressed && !disabled && styles.btnPressed,
+        pressed && !disabled && (isDestructive ? styles.btnDestructivePressed : styles.btnPressed),
       ]}
     >
       <Text style={[styles.btnText, disabled && styles.btnTextDisabled]}>{label}</Text>
@@ -392,6 +495,49 @@ const styles = StyleSheet.create({
     color: "#334155",
     marginBottom: 12,
   },
+  optionLabel: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  optionRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 12,
+  },
+  optionChip: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 6,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  optionChipActive: {
+    backgroundColor: "#3b82f6",
+    borderColor: "#3b82f6",
+  },
+  optionChipDisabled: {
+    opacity: 0.5,
+  },
+  optionChipText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#334155",
+    textAlign: "center",
+  },
+  optionChipTextActive: {
+    color: "#ffffff",
+  },
+  optionChipTextDisabled: {
+    color: "#94a3b8",
+  },
   row: {
     flexDirection: "row",
     gap: 8,
@@ -406,8 +552,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
+  btnDestructive: {
+    backgroundColor: "#ef4444",
+  },
   btnPressed: {
     backgroundColor: "#2563eb",
+  },
+  btnDestructivePressed: {
+    backgroundColor: "#dc2626",
   },
   btnDisabled: {
     backgroundColor: "#e2e8f0",
