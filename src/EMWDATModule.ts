@@ -24,7 +24,7 @@ declare class EMWDATNativeModule extends NativeModule<EMWDATModuleEvents> {
   getRegistrationStateAsync(): Promise<string>;
   startRegistration(): Promise<void>;
   startUnregistration(): Promise<void>;
-  handleUrl(url: string): boolean;
+  handleUrl(url: string): Promise<boolean>;
   checkPermissionStatus(permission: string): Promise<string>;
   requestPermission(permission: string): Promise<string>;
   getDevices(): Promise<Device[]>;
@@ -77,7 +77,7 @@ export async function startUnregistration(): Promise<void> {
   return EMWDATModule.startUnregistration();
 }
 
-export function handleUrl(url: string): boolean {
+export async function handleUrl(url: string): Promise<boolean> {
   return EMWDATModule.handleUrl(url);
 }
 

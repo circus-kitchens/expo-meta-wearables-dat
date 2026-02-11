@@ -27,7 +27,7 @@ class EMWDATWebModule extends NativeModule<EMWDATModuleEvents> {
   startUnregistration(): Promise<void> {
     unsupported();
   }
-  handleUrl(): boolean {
+  handleUrl(): Promise<boolean> {
     unsupported();
   }
   checkPermissionStatus(): Promise<string> {
@@ -86,7 +86,7 @@ export async function startRegistration(): Promise<void> {
 export async function startUnregistration(): Promise<void> {
   unsupported();
 }
-export function handleUrl(): never {
+export async function handleUrl(): Promise<never> {
   unsupported();
 }
 export async function checkPermissionStatus(): Promise<never> {

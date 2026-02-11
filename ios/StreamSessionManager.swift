@@ -51,7 +51,7 @@ public final class StreamSessionManager {
     // MARK: - Stream Control
 
     /// Start a streaming session with the given configuration
-    public func startStream(config: StreamSessionConfig) throws {
+    public func startStream(config: StreamSessionConfig) async throws {
         guard streamSession == nil else {
             logger.warn("StreamSession", "Stream already active")
             throw StreamSessionManagerError.sessionAlreadyActive
@@ -99,20 +99,20 @@ public final class StreamSessionManager {
             }
         }
 
-        // Start the session (synchronous in SDK 0.4)
-        session.start()
+        // Start the session (async in SDK 0.4)
+        await session.start()
         logger.info("StreamSession", "Stream session started")
     }
 
     /// Stop the current streaming session
-    public func stopStream() {
+    public func stopStream() async {
         guard let session = streamSession else {
             logger.warn("StreamSession", "No active stream to stop")
             return
         }
 
         logger.info("StreamSession", "Stopping stream")
-        session.stop()
+        await session.stop()
         cleanup()
     }
 

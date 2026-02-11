@@ -84,7 +84,7 @@ public class EMWDATModule: Module {
         AsyncFunction("startRegistration") { (promise: Promise) in
             Task { @MainActor in
                 do {
-                    try WearablesManager.shared.startRegistration()
+                    try await WearablesManager.shared.startRegistration()
                     promise.resolve(nil)
                 } catch {
                     promise.reject("REGISTRATION_FAILED", error.localizedDescription)
@@ -95,7 +95,7 @@ public class EMWDATModule: Module {
         AsyncFunction("startUnregistration") { (promise: Promise) in
             Task { @MainActor in
                 do {
-                    try WearablesManager.shared.startUnregistration()
+                    try await WearablesManager.shared.startUnregistration()
                     promise.resolve(nil)
                 } catch {
                     promise.reject("UNREGISTRATION_FAILED", error.localizedDescription)
@@ -105,14 +105,21 @@ public class EMWDATModule: Module {
 
         // MARK: - URL Handling
 
-        Function("handleUrl") { (url: String) -> Bool in
+        AsyncFunction("handleUrl") { (url: String, promise: Promise) in
             guard let parsedUrl = URL(string: url) else {
                 self.logger.warn("Module", "Invalid URL", context: ["url": url])
-                return false
+                promise.resolve(false)
+                return
             }
-            // Call SDK directly (not through @MainActor manager) since Function runs on JS thread.
-            // SDK's handleUrl is a synchronous URL routing call.
-            return Wearables.shared.handleUrl(parsedUrl)
+            Task {
+                do {
+                    let handled = try await Wearables.shared.handleUrl(parsedUrl)
+                    promise.resolve(handled)
+                } catch {
+                    self.logger.error("Module", "handleUrl failed", error: error)
+                    promise.resolve(false)
+                }
+            }
         }
 
         // MARK: - Permissions
@@ -123,8 +130,13 @@ public class EMWDATModule: Module {
                 return
             }
             Task { @MainActor in
-                let status = WearablesManager.shared.checkPermissionStatus(.camera)
-                promise.resolve(self.mapPermissionStatus(status))
+                do {
+                    let status = try await WearablesManager.shared.checkPermissionStatus(.camera)
+                    promise.resolve(self.mapPermissionStatus(status))
+                } catch {
+                    self.logger.error("Module", "checkPermissionStatus failed", error: error)
+                    promise.resolve("denied")
+                }
             }
         }
 
@@ -134,8 +146,12 @@ public class EMWDATModule: Module {
                 return
             }
             Task { @MainActor in
-                let status = WearablesManager.shared.requestPermission(.camera)
-                promise.resolve(self.mapPermissionStatus(status))
+                do {
+                    let status = try await WearablesManager.shared.requestPermission(.camera)
+                    promise.resolve(self.mapPermissionStatus(status))
+                } catch {
+                    promise.reject("PERMISSION_FAILED", error.localizedDescription)
+                }
             }
         }
 
@@ -166,7 +182,7 @@ public class EMWDATModule: Module {
             Task { @MainActor in
                 do {
                     let sessionConfig = StreamSessionManager.parseConfig(from: config)
-                    try StreamSessionManager.shared.startStream(config: sessionConfig)
+                    try await StreamSessionManager.shared.startStream(config: sessionConfig)
                     promise.resolve(nil)
                 } catch {
                     promise.reject("STREAM_START_FAILED", error.localizedDescription)
@@ -176,7 +192,7 @@ public class EMWDATModule: Module {
 
         AsyncFunction("stopStream") { (promise: Promise) in
             Task { @MainActor in
-                StreamSessionManager.shared.stopStream()
+                await StreamSessionManager.shared.stopStream()
                 promise.resolve(nil)
             }
         }

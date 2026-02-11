@@ -86,20 +86,27 @@ public final class WearablesManager {
                 self?.logger.warn("Manager", "URL callback received but URL is missing")
                 return
             }
-            _ = self?.handleUrl(url)
+            Task { @MainActor in
+                await self?.handleUrl(url)
+            }
         }
         logger.debug("Manager", "URL callback handler registered")
     }
 
     // MARK: - URL Handling
 
-    /// Handle a URL callback from the Meta AI app (synchronous in SDK 0.4)
+    /// Handle a URL callback from the Meta AI app (async in SDK 0.4)
     @discardableResult
-    public func handleUrl(_ url: URL) -> Bool {
+    public func handleUrl(_ url: URL) async -> Bool {
         logger.info("Manager", "Handling URL callback", context: ["url": url.absoluteString])
-        let handled = Wearables.shared.handleUrl(url)
-        logger.info("Manager", "URL callback result", context: ["handled": handled])
-        return handled
+        do {
+            let handled = try await Wearables.shared.handleUrl(url)
+            logger.info("Manager", "URL callback result", context: ["handled": handled])
+            return handled
+        } catch {
+            logger.error("Manager", "handleUrl failed", error: error)
+            return false
+        }
     }
 
     // MARK: - State Change Handlers
@@ -166,39 +173,38 @@ public final class WearablesManager {
 
     // MARK: - Registration
 
-    public func startRegistration() throws {
+    public func startRegistration() async throws {
         guard isConfigured else {
             throw WearablesManagerError.notConfigured
         }
 
         logger.info("Manager", "Starting registration")
-        try Wearables.shared.startRegistration()
+        try await Wearables.shared.startRegistration()
     }
 
-    public func startUnregistration() throws {
+    public func startUnregistration() async throws {
         guard isConfigured else {
             throw WearablesManagerError.notConfigured
         }
 
         logger.info("Manager", "Starting unregistration")
-        try Wearables.shared.startUnregistration()
+        try await Wearables.shared.startUnregistration()
     }
 
-    // MARK: - Permissions (synchronous in SDK 0.4)
+    // MARK: - Permissions (async throws in SDK 0.4)
 
-    public func checkPermissionStatus(_ permission: Permission) -> PermissionStatus {
+    public func checkPermissionStatus(_ permission: Permission) async throws -> PermissionStatus {
         logger.debug("Manager", "Checking permission status", context: ["permission": String(describing: permission)])
-        return Wearables.shared.checkPermissionStatus(permission)
+        return try await Wearables.shared.checkPermissionStatus(permission)
     }
 
-    public func requestPermission(_ permission: Permission) -> PermissionStatus {
+    public func requestPermission(_ permission: Permission) async throws -> PermissionStatus {
         guard isConfigured else {
-            logger.error("Manager", "Cannot request permission - SDK not configured")
-            return .denied
+            throw WearablesManagerError.notConfigured
         }
 
         logger.info("Manager", "Requesting permission", context: ["permission": String(describing: permission)])
-        let status = Wearables.shared.requestPermission(permission)
+        let status = try await Wearables.shared.requestPermission(permission)
 
         emitEvent("onPermissionStatusChange", [
             "permission": permission == .camera ? "camera" : "unknown",

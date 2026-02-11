@@ -212,8 +212,8 @@ export default function App() {
           <Section title="URL Handling">
             <Btn
               label="Test handleUrl"
-              onPress={() => {
-                const handled = handleUrl("emwdat-example://callback");
+              onPress={async () => {
+                const handled = await handleUrl("emwdat-example://callback");
                 Alert.alert("handleUrl", `Handled: ${handled}`);
               }}
               disabled={!isConfigured}
