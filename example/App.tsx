@@ -1,4 +1,5 @@
-import { useMetaWearables, EMWDATStreamView, handleUrl } from "expo-meta-wearables-dat";
+import { File as ExpoFile } from "expo-file-system";
+import { useMetaWearables, EMWDATStreamView } from "expo-meta-wearables-dat";
 import type {
   Device,
   StreamSessionError,
@@ -7,20 +8,52 @@ import type {
   StreamingResolution,
   StreamSessionState,
   RegistrationState,
+  LogLevel,
 } from "expo-meta-wearables-dat";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 // =============================================================================
+// Types
+// =============================================================================
+
+interface LogEntry {
+  id: number;
+  time: string;
+  message: string;
+  color?: string;
+}
+
+// =============================================================================
 // Main App
 // =============================================================================
+
+const MAX_LOG_ENTRIES = 50;
+let logId = Date.now();
 
 export default function App() {
   const [lastPhoto, setLastPhoto] = useState<PhotoData | null>(null);
   const [resolution, setResolution] = useState<StreamingResolution>("low");
   const [frameRate, setFrameRate] = useState<number>(15);
   const [photoFormat, setPhotoFormat] = useState<PhotoCaptureFormat>("jpeg");
+  const [logLevel, setLogLevelState] = useState<LogLevel>("debug");
+  const [eventLog, setEventLog] = useState<LogEntry[]>([]);
+
+  // Frame stats
+  const [fps, setFps] = useState(0);
+  const [frameDimensions, setFrameDimensions] = useState("");
+  const frameCountRef = useRef(0);
+  const fpsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const addLogEntry = useCallback((message: string, color?: string) => {
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
+    setEventLog((prev) => {
+      const next = [{ id: ++logId, time, message, color }, ...prev];
+      return next.length > MAX_LOG_ENTRIES ? next.slice(0, MAX_LOG_ENTRIES) : next;
+    });
+  }, []);
 
   const {
     // State
@@ -31,6 +64,7 @@ export default function App() {
     streamState,
     lastError,
     // Actions
+    setLogLevel: nativeSetLogLevel,
     startRegistration,
     startUnregistration,
     requestPermission,
@@ -39,33 +73,61 @@ export default function App() {
     stopStream,
     capturePhoto,
   } = useMetaWearables({
-    logLevel: "debug",
+    logLevel,
     onRegistrationStateChange: (state) => {
-      console.log("[EMWDAT] Registration:", state);
+      addLogEntry(`Registration → ${state}`, registrationColor(state));
     },
     onDevicesChange: (deviceList) => {
-      console.log("[EMWDAT] Devices:", deviceList.length);
+      addLogEntry(`Devices updated (${deviceList.length})`);
     },
     onLinkStateChange: (deviceId, linkState) => {
-      console.log("[EMWDAT] Link:", deviceId, linkState);
+      const color =
+        linkState === "connected" ? "#22c55e" : linkState === "connecting" ? "#f59e0b" : "#94a3b8";
+      addLogEntry(`Device ${deviceId.slice(0, 8)}… → ${linkState}`, color);
     },
     onStreamStateChange: (state) => {
-      console.log("[EMWDAT] Stream:", state);
+      addLogEntry(`Stream → ${state}`, streamColor(state));
     },
     onVideoFrame: (metadata) => {
-      console.log("[EMWDAT] Frame:", metadata.width, "x", metadata.height);
+      frameCountRef.current++;
+      setFrameDimensions(`${metadata.width}×${metadata.height}`);
     },
     onPhotoCaptured: (photo) => {
-      console.log("[EMWDAT] Photo:", photo.filePath);
+      addLogEntry(`Photo captured (${photo.format})`, "#22c55e");
       setLastPhoto(photo);
     },
     onStreamError: (error) => {
-      console.warn("[EMWDAT] Stream error:", error.type);
+      addLogEntry(`Stream error: ${formatError(error)}`, "#ef4444");
     },
     onPermissionStatusChange: (permission, status) => {
-      console.log("[EMWDAT] Permission:", permission, status);
+      const color = status === "granted" ? "#22c55e" : "#ef4444";
+      addLogEntry(`Permission ${permission} → ${status}`, color);
     },
   });
+
+  // FPS counter interval
+  useEffect(() => {
+    if (streamState === "streaming") {
+      frameCountRef.current = 0;
+      setFps(0);
+      fpsIntervalRef.current = setInterval(() => {
+        setFps(frameCountRef.current);
+        frameCountRef.current = 0;
+      }, 1000);
+    } else {
+      if (fpsIntervalRef.current) {
+        clearInterval(fpsIntervalRef.current);
+        fpsIntervalRef.current = null;
+      }
+      setFps(0);
+      setFrameDimensions("");
+    }
+    return () => {
+      if (fpsIntervalRef.current) {
+        clearInterval(fpsIntervalRef.current);
+      }
+    };
+  }, [streamState]);
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -77,6 +139,27 @@ export default function App() {
     } catch (err) {
       Alert.alert("Error", err instanceof Error ? err.message : String(err));
     }
+  };
+
+  const handleLogLevelChange = (level: string) => {
+    const l = level as LogLevel;
+    setLogLevelState(l);
+    nativeSetLogLevel(l);
+    addLogEntry(`Log level → ${l}`);
+  };
+
+  const deletePhoto = () => {
+    if (!lastPhoto) return;
+    try {
+      const file = new ExpoFile(`file://${lastPhoto.filePath}`);
+      if (file.exists) {
+        file.delete();
+      }
+      addLogEntry("Photo deleted from disk", "#ef4444");
+    } catch {
+      // File may already be gone
+    }
+    setLastPhoto(null);
   };
 
   // ---------------------------------------------------------------------------
@@ -106,6 +189,11 @@ export default function App() {
             {lastError && (
               <StatusRow label="Last Error" value={formatError(lastError)} color="#ef4444" />
             )}
+          </Section>
+
+          {/* Log Level */}
+          <Section title="Log Level">
+            <OptionRow options={LOG_LEVELS} selected={logLevel} onSelect={handleLogLevelChange} />
           </Section>
 
           {/* Registration */}
@@ -148,7 +236,11 @@ export default function App() {
 
           {/* Devices */}
           <Section title={`Devices (${devices.length})`}>
-            <Btn label="Refresh Devices" onPress={safe(refreshDevices)} disabled={!isConfigured} />
+            <Btn
+              label="Refresh Devices"
+              onPress={safe(refreshDevices)}
+              disabled={!isConfigured || registrationState !== "registered"}
+            />
             {devices.map((device) => (
               <DeviceCard key={device.identifier} device={device} />
             ))}
@@ -219,6 +311,13 @@ export default function App() {
                 resizeMode="contain"
                 style={styles.preview}
               />
+              {streamState === "streaming" && (fps > 0 || frameDimensions) ? (
+                <View style={styles.frameStats}>
+                  <Text style={styles.frameStatsText}>
+                    {fps} fps{frameDimensions ? ` | ${frameDimensions}` : ""}
+                  </Text>
+                </View>
+              ) : null}
               {streamState !== "streaming" && (
                 <View style={styles.previewOverlay}>
                   <Text style={styles.previewText}>
@@ -250,23 +349,33 @@ export default function App() {
                 {lastPhoto.filePath}
               </Text>
               <View style={{ height: 8 }} />
-              <Btn variant="destructive" label="Delete Photo" onPress={() => setLastPhoto(null)} />
+              <Btn variant="destructive" label="Delete Photo" onPress={deletePhoto} />
             </Section>
           )}
 
-          {/* URL Handling */}
-          <Section title="URL Handling">
-            <Btn
-              label="Test handleUrl"
-              onPress={async () => {
-                const handled = await handleUrl("emwdat-example://callback");
-                Alert.alert("handleUrl", `Handled: ${handled}`);
-              }}
-              disabled={!isConfigured}
-            />
-            <Text style={styles.hint}>
-              In production, URLs are handled automatically via AppDelegateSubscriber.
-            </Text>
+          {/* Event Log */}
+          <Section title="Event Log">
+            <View style={styles.eventLog}>
+              <ScrollView style={styles.eventLogScroll} nestedScrollEnabled>
+                {eventLog.length === 0 && <Text style={styles.hint}>No events yet.</Text>}
+                {eventLog.map((entry) => (
+                  <View key={entry.id} style={styles.eventLogEntry}>
+                    <Text style={styles.eventLogTime}>{entry.time}</Text>
+                    <Text
+                      style={[
+                        styles.eventLogMessage,
+                        entry.color ? { color: entry.color } : undefined,
+                      ]}
+                    >
+                      {entry.message}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+            {eventLog.length > 0 && (
+              <Btn label="Clear Log" variant="destructive" onPress={() => setEventLog([])} />
+            )}
           </Section>
         </ScrollView>
       </SafeAreaView>
@@ -277,6 +386,14 @@ export default function App() {
 // =============================================================================
 // Constants
 // =============================================================================
+
+const LOG_LEVELS = [
+  { label: "Debug", value: "debug" },
+  { label: "Info", value: "info" },
+  { label: "Warn", value: "warn" },
+  { label: "Error", value: "error" },
+  { label: "None", value: "none" },
+];
 
 const RESOLUTIONS = [
   { label: "Low\n(360x640)", value: "low" },
@@ -402,9 +519,27 @@ function StatusRow({ label, value, color }: { label: string; value: string; colo
 }
 
 function DeviceCard({ device }: { device: Device }) {
+  const isDisconnected = device.linkState === "disconnected";
   return (
-    <View style={styles.deviceCard}>
-      <Text style={styles.deviceName}>{device.name || "Unnamed Device"}</Text>
+    <View style={[styles.deviceCard, isDisconnected && styles.deviceCardDisconnected]}>
+      <View style={styles.deviceHeader}>
+        <Text style={[styles.deviceName, isDisconnected && styles.deviceNameDisconnected]}>
+          {device.name || "Unnamed Device"}
+        </Text>
+        <View
+          style={[
+            styles.deviceDot,
+            {
+              backgroundColor:
+                device.linkState === "connected"
+                  ? "#22c55e"
+                  : device.linkState === "connecting"
+                    ? "#f59e0b"
+                    : "#cbd5e1",
+            },
+          ]}
+        />
+      </View>
       <StatusRow label="ID" value={device.identifier} />
       <StatusRow label="Type" value={device.deviceType} />
       <StatusRow
@@ -619,6 +754,21 @@ const styles = StyleSheet.create({
     color: "#64748b",
     fontSize: 14,
   },
+  frameStats: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  frameStatsText: {
+    color: "#22c55e",
+    fontSize: 12,
+    fontFamily: "Courier",
+    fontWeight: "600",
+  },
   photoPreview: {
     height: 240,
     borderRadius: 8,
@@ -636,11 +786,57 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#22c55e",
+  },
+  deviceCardDisconnected: {
+    opacity: 0.55,
+    borderLeftColor: "#cbd5e1",
+  },
+  deviceHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
   },
   deviceName: {
     fontSize: 15,
     fontWeight: "600",
     color: "#0f172a",
+  },
+  deviceNameDisconnected: {
+    color: "#94a3b8",
+  },
+  deviceDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  eventLog: {
+    height: 200,
+    backgroundColor: "#0f172a",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  eventLogScroll: {
+    flex: 1,
+  },
+  eventLogEntry: {
+    flexDirection: "row",
     marginBottom: 4,
+  },
+  eventLogTime: {
+    color: "#475569",
+    fontSize: 11,
+    fontFamily: "Courier",
+    marginRight: 8,
+    minWidth: 60,
+  },
+  eventLogMessage: {
+    color: "#e2e8f0",
+    fontSize: 11,
+    fontFamily: "Courier",
+    flex: 1,
   },
 });
