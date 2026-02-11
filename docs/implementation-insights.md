@@ -22,6 +22,20 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **`addListener` typing**: Generic over `EMWDATModuleEvents` keys — ensures event name + listener payload are type-linked.
 - **Build note**: After step 2, remaining errors are `EMWDATView.tsx`/`.web.tsx` (Step 15) and `index.ts` no default export (Step 11).
 
+## Step 3 Decisions
+
+- **Logger**: Renamed `MetaWearablesLogger` → `EMWDATLogger`, `MetaWearablesLogLevel` → `EMWDATLogLevel`. OSLog subsystem: `expo.modules.emwdat`, category: `EMWDAT`. DispatchQueue label: `expo.modules.emwdat.logger`.
+- **Permissions API**: `checkPermissionStatus` and `requestPermission` are **synchronous** in SDK 0.4 (no async/throws). WearablesManager methods are sync; module will wrap in AsyncFunction for JS Promise.
+- **handleUrl**: **Synchronous** in SDK 0.4 — `Wearables.shared.handleUrl(url) -> Bool`. No more async/await/throws. WearablesManager method marked `@discardableResult`.
+- **StreamSession.start()/stop()**: **Synchronous** in SDK 0.4 (no more `await`). StreamSessionManager's `startStream` is now sync `throws` (not `async throws`), and `stopStream` is sync (not `async`).
+- **Publisher subscriptions**: Keep `.listen { }` pattern (SDK extension returning `AnyListenerToken`), not Combine `.sink`.
+- **onVideoFrame metadata**: Now emitted over the bridge as `{ timestamp, width, height }` for every frame. Width/height from `UIImage.size` (scale=1 for camera frames).
+- **onStreamError**: Changed from `{ code, message }` (v0.3) to discriminated union dict `{ type, deviceId? }` matching TS `StreamSessionError` type.
+- **URL notification name**: Changed from `MetaWearablesURLCallback` to `EMWDATURLCallback` (NotificationCenter backup for AppDelegateSubscriber).
+- **New mappings**: `LinkState.connecting`, `DeviceType.oakleyMetaHSTN/oakleyMetaVanguard/metaRayBanDisplay`, `StreamSessionError.hingesClosed`.
+- **EventEmitter typealias**: Defined in `WearablesManager.swift`, shared by `StreamSessionManager.swift`. `FrameCallback` typealias defined in `StreamSessionManager.swift`.
+- **Build note**: These files won't compile standalone — they depend on MWDATCore/MWDATCamera SPM packages (configured in step 7) and are consumed by EMWDATModule.swift (step 4).
+
 ---
 
 ## Native SDK API (MWDAT 0.4)
@@ -85,7 +99,9 @@ session.errorPublisher       → AnyPublisher<StreamSessionError, Never>
 - `Device.name` can be empty string
 - `startRegistration()` / `startUnregistration()` open the Meta AI app (user leaves your app)
 - `handleUrl(URL) -> Bool` must be called when user returns from Meta AI app
-- `requestPermission()` is async and may open Meta AI app
+- `checkPermissionStatus()` and `requestPermission()` are synchronous in SDK 0.4 (no async/throws)
+- `requestPermission()` may open Meta AI app
+- `StreamSession.start()` and `stop()` are synchronous in SDK 0.4
 
 ---
 
