@@ -8,7 +8,7 @@ import type {
   PermissionStatus,
 } from "expo-meta-wearables-dat";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 // =============================================================================
@@ -133,9 +133,16 @@ export default function App() {
               <Btn
                 label="Request"
                 onPress={safe(() => requestPermission("camera"))}
-                disabled={!isConfigured || registrationState !== "registered"}
+                disabled={
+                  !isConfigured ||
+                  registrationState !== "registered" ||
+                  permissionStatus === "granted"
+                }
               />
             </Row>
+            {permissionStatus === "granted" && (
+              <Text style={styles.hint}>Camera permission already granted.</Text>
+            )}
           </Section>
 
           {/* Devices */}
@@ -193,6 +200,11 @@ export default function App() {
           {/* Last Photo */}
           {lastPhoto && (
             <Section title="Last Photo">
+              <Image
+                source={{ uri: `file://${lastPhoto.filePath}` }}
+                style={styles.photoPreview}
+                resizeMode="contain"
+              />
               <StatusRow label="Format" value={lastPhoto.format} />
               <StatusRow
                 label="Size"
@@ -205,6 +217,7 @@ export default function App() {
               <Text style={styles.filePath} numberOfLines={2}>
                 {lastPhoto.filePath}
               </Text>
+              <Btn label="Delete Photo" onPress={() => setLastPhoto(null)} />
             </Section>
           )}
 
@@ -444,6 +457,12 @@ const styles = StyleSheet.create({
   previewText: {
     color: "#64748b",
     fontSize: 14,
+  },
+  photoPreview: {
+    height: 240,
+    borderRadius: 8,
+    backgroundColor: "#0f172a",
+    marginBottom: 8,
   },
   filePath: {
     color: "#64748b",

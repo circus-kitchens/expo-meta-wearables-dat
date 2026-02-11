@@ -228,9 +228,13 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
       if (!isConfiguredRef.current) {
         return "denied";
       }
-      return nativeCheckPermissionStatus(permission);
+      const status = await nativeCheckPermissionStatus(permission);
+      if (permission === "camera") {
+        syncPermissionStatus(status);
+      }
+      return status;
     },
-    []
+    [syncPermissionStatus]
   );
 
   const requestPermissionAction = useCallback(
