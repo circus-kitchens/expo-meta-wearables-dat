@@ -62,6 +62,8 @@ public class EMWDATModule: Module {
                 do {
                     try WearablesManager.shared.configure()
                     promise.resolve(nil)
+                } catch let error as WearablesError {
+                    promise.reject("CONFIGURATION_FAILED", self.describeWearablesError(error))
                 } catch {
                     promise.reject("CONFIGURATION_FAILED", "Failed to configure SDK: \(error.localizedDescription)")
                 }
@@ -86,6 +88,8 @@ public class EMWDATModule: Module {
                 do {
                     try await WearablesManager.shared.startRegistration()
                     promise.resolve(nil)
+                } catch let error as RegistrationError {
+                    promise.reject("REGISTRATION_FAILED", self.describeRegistrationError(error))
                 } catch {
                     promise.reject("REGISTRATION_FAILED", error.localizedDescription)
                 }
@@ -97,6 +101,8 @@ public class EMWDATModule: Module {
                 do {
                     try await WearablesManager.shared.startUnregistration()
                     promise.resolve(nil)
+                } catch let error as UnregistrationError {
+                    promise.reject("UNREGISTRATION_FAILED", self.describeUnregistrationError(error))
                 } catch {
                     promise.reject("UNREGISTRATION_FAILED", error.localizedDescription)
                 }
@@ -253,6 +259,53 @@ public class EMWDATModule: Module {
         case .streaming: return "streaming"
         case .paused: return "paused"
         @unknown default: return "stopped"
+        }
+    }
+
+    // MARK: - Error Descriptions
+
+    private func describeWearablesError(_ error: WearablesError) -> String {
+        switch error {
+        case .internalError:
+            return "Internal SDK error during configuration."
+        case .alreadyConfigured:
+            return "Wearables SDK is already configured."
+        case .configurationError:
+            return "SDK configuration error. Check Info.plist MWDAT dictionary (MetaAppID, ClientToken, AppLinkURLScheme)."
+        @unknown default:
+            return "Unexpected SDK error."
+        }
+    }
+
+    private func describeRegistrationError(_ error: RegistrationError) -> String {
+        switch error {
+        case .alreadyRegistered:
+            return "Device is already registered."
+        case .configurationInvalid:
+            return "MWDAT configuration is invalid. Check Info.plist MWDAT dictionary (MetaAppID, ClientToken, AppLinkURLScheme). Ensure Developer Mode is enabled in the Meta AI app."
+        case .metaAINotInstalled:
+            return "Meta AI app is not installed on this device."
+        case .networkUnavailable:
+            return "Network is unavailable."
+        case .unknown:
+            return "Unknown registration error."
+        @unknown default:
+            return "Unexpected registration error."
+        }
+    }
+
+    private func describeUnregistrationError(_ error: UnregistrationError) -> String {
+        switch error {
+        case .alreadyUnregistered:
+            return "Device is already unregistered."
+        case .configurationInvalid:
+            return "MWDAT configuration is invalid. Check Info.plist MWDAT dictionary."
+        case .metaAINotInstalled:
+            return "Meta AI app is not installed on this device."
+        case .unknown:
+            return "Unknown unregistration error."
+        @unknown default:
+            return "Unexpected unregistration error."
         }
     }
 }

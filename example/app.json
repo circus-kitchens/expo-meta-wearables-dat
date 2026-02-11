@@ -29,12 +29,14 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+
     "plugins": [
       [
         "../app.plugin.cjs",
         {
           "urlScheme": "emwdat-example",
-          "metaAppId": "0",
+          "metaAppId": "879777611505837",
+          "clientToken": "AR|879777611505837|9b6ee93c3e702e47516fb8462fe48e83",
           "bluetoothUsageDescription": "This app uses Bluetooth to communicate with Meta Wearables glasses."
         }
       ]

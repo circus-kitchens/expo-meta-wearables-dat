@@ -5,6 +5,8 @@ type EMWDATPluginProps = {
   urlScheme: string;
   /** Meta App ID — use "0" for Developer Mode (default). Published apps get a dedicated value from the Wearables Developer Center. */
   metaAppId?: string;
+  /** Client Token from Wearables Developer Center (optional for Developer Mode). */
+  clientToken?: string;
   /** Custom NSBluetoothAlwaysUsageDescription text */
   bluetoothUsageDescription?: string;
 };
@@ -65,10 +67,14 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
     plist.NSBluetoothAlwaysUsageDescription = bluetoothDescription;
 
     // MWDAT configuration dictionary
-    plist.MWDAT = {
+    const mwdatConfig: Record<string, string> = {
       AppLinkURLScheme: `${urlScheme}://`,
       MetaAppID: metaAppId,
     };
+    if (props.clientToken) {
+      mwdatConfig.ClientToken = props.clientToken;
+    }
+    plist.MWDAT = mwdatConfig;
 
     return config;
   });
