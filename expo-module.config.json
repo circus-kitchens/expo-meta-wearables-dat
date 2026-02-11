@@ -1,7 +1,8 @@
 {
   "platforms": ["apple", "android", "web"],
   "apple": {
-    "modules": ["EMWDATModule"]
+    "modules": ["EMWDATModule"],
+    "appDelegateSubscribers": ["EMWDATAppDelegateSubscriber"]
   },
   "android": {
     "modules": ["expo.modules.emwdat.EMWDATModule"]

@@ -62,6 +62,15 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **@MainActor bridging**: `setActive` wraps StreamSessionManager calls in `Task { @MainActor in }` — same pattern as v0.3. Needed because ExpoView methods aren't @MainActor-annotated even though they run on main thread.
 - **Build note**: Same SPM dependency requirement as steps 3-5 (step 7). File references StreamSessionManager and EMWDATLogger.
 
+## Step 7 Decisions
+
+- **expo-module.config.json**: Added `appDelegateSubscribers: ["EMWDATAppDelegateSubscriber"]` under `apple` — registers the URL handler from step 5 with Expo's app delegate system.
+- **Podspec platform**: Removed tvOS, kept iOS only at 16.0 minimum (SDK requirement).
+- **SPM dependency**: Uses `spm_dependency` helper from React Native's `scripts/react_native_pods` (same proven approach as v0.3). Requirement: `upToNextMinorVersion` from `0.4.0`. Products: `MWDATCore`, `MWDATCamera`.
+- **source_files**: Changed from `**/*.{h,m,mm,swift,hpp,cpp}` to `**/*.swift` — project is pure Swift, no ObjC/C++ files needed.
+- **xcconfig**: Added `SWIFT_COMPILATION_MODE: wholemodule` (from v0.3) for better build performance alongside `DEFINES_MODULE`.
+- **Build note**: Pre-existing TS errors remain (`EMWDATView.tsx`/`.web.tsx` from step 15, `index.ts` from step 11). No new errors introduced.
+
 ---
 
 ## Native SDK API (MWDAT 0.4)

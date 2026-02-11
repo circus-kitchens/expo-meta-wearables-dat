@@ -16,7 +16,7 @@ Rewrite placeholder Expo module to bridge MWDAT iOS 0.4 SDK. Expose `useMetaWear
 | 4   | iOS module       | `EMWDATModule.swift`                                                         | ✅     |
 | 5   | iOS URL handler  | `EMWDATAppDelegateSubscriber.swift`                                          | ✅     |
 | 6   | iOS view         | `EMWDATStreamView.swift`                                                     | ✅     |
-| 7   | Config           | `expo-module.config.json`, `EMWDAT.podspec`                                  | ❌     |
+| 7   | Config           | `expo-module.config.json`, `EMWDAT.podspec`                                  | ✅     |
 | 8   | Android stubs    | `EMWDATModule.kt`, `EMWDATView.kt`                                           | ❌     |
 | 9   | Hook             | `src/useMetaWearables.ts`                                                    | ❌     |
 | 10  | View component   | `src/EMWDATStreamView.tsx`                                                   | ❌     |
