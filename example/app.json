@@ -14,7 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "expo.modules.emwdat.example"
+      "bundleIdentifier": "expo.modules.emwdat.example",
+      "deploymentTarget": "16.0"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +28,16 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "../app.plugin.cjs",
+        {
+          "urlScheme": "emwdat-example",
+          "metaAppId": "0",
+          "bluetoothUsageDescription": "This app uses Bluetooth to communicate with Meta Wearables glasses."
+        }
+      ]
+    ]
   }
 }

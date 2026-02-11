@@ -117,6 +117,16 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **Props type**: Defined inline in plugin source (not imported from `src/EMWDAT.types.ts`) — plugin has separate tsconfig/build context with different rootDir, can't reference parent source files.
 - **Build note**: Same pre-existing TS errors (`EMWDATView.tsx`/`.web.tsx` from step 15). Plugin builds cleanly via `pnpm expo-module build plugin`.
 
+## Step 13 Decisions
+
+- **Single-file app**: Full lifecycle demo in one `App.tsx` — no navigation, just scrollable sections. Sufficient for SDK integration testing.
+- **Sections**: Status (all state), Registration (register/unregister), Permissions (check/request), Devices (list + refresh), Streaming (start/stop + camera preview + capture), Last Photo (file path + metadata), URL Handling (test `handleUrl`).
+- **Button guards**: Buttons disabled based on state prerequisites (same guards as hook validation). Prevents error alerts for obvious precondition failures.
+- **Error display**: Actions wrapped in `safe()` helper that catches errors and shows `Alert.alert`. `lastError` from hook shown in Status section.
+- **Config plugin**: Added to `app.json` with placeholder `urlScheme: "emwdat-example"`, `metaAppId: "0"` (Developer Mode).
+- **Dependencies**: No new dependencies — uses existing `react-native-safe-area-context` from package.json.
+- **Build note**: Same pre-existing TS errors (`EMWDATView.tsx`/`.web.tsx` from step 15). Example type-checks cleanly via `tsc --noEmit`.
+
 ---
 
 ## Native SDK API (MWDAT 0.4)
