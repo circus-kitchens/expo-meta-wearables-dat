@@ -3,7 +3,7 @@ set -euo pipefail
 
 # for i in {1..20}; do
 #   echo "=== Run $i/20 ==="
-#   ./docs/ios/scripts/implementation.sh 2>&1 | tee "./docs/ios/0.4/logs/run_$i.txt"
+#   ./docs/ios/scripts/implementation.sh 2>&1 | tee "./docs/ios/logs/run_$i.txt"
 # done
 
 ## Prerequisites
@@ -25,7 +25,6 @@ The goal is to create a robust package and expose the required values, methods, 
 5) Implement the step.
 6) Update the @docs/implementation-plan.md file to mark the step as [✅].
 7) Update the @docs/implementation-insights.md file with the new insights (only if you found any relevant info).
-8) End the session immediately after marking it [✅].
 
 ## Hard constraints:
 - Exactly one step per run.

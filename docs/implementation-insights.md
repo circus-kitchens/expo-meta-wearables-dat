@@ -4,6 +4,17 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 
 ---
 
+## Step 1 Decisions
+
+- **EMWDATModuleEvents**: Must use function signatures `(payload: T) => void` (not plain objects) to satisfy Expo's `NativeModule<EventsMap>` constraint where `EventsMap = Record<string, (...args: any[]) => void>`
+- **VideoCodec**: Only `"raw"` — matches actual SDK 0.4 surface (h264/h265 don't work)
+- **All SDK types included**: DeviceState, HingeState, SessionState, DecoderError, UnregistrationError, WearablesHandleURLError added for completeness even though not all are used by the hook
+- **Event naming**: `onLinkStateChange` (not `onDeviceLinkStateChange` from v0.3)
+- **StreamSessionError**: Discriminated union with `type` field; cases with associated values carry extra fields (e.g. `deviceId`)
+- **Build note**: After step 1, build fails on `EMWDATModule.web.ts` (emits old `"onChange"`), `EMWDATView.tsx`/`.web.tsx` (import removed `EMWDATViewProps`). These are resolved by steps 2 and 15 respectively.
+
+---
+
 ## Native SDK API (MWDAT 0.4)
 
 ### Imports
