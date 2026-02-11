@@ -13,6 +13,15 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **StreamSessionError**: Discriminated union with `type` field; cases with associated values carry extra fields (e.g. `deviceId`)
 - **Build note**: After step 1, build fails on `EMWDATModule.web.ts` (emits old `"onChange"`), `EMWDATView.tsx`/`.web.tsx` (import removed `EMWDATViewProps`). These are resolved by steps 2 and 15 respectively.
 
+## Step 2 Decisions
+
+- **Named exports**: Module exports `EMWDATModule` (named) instead of `default` — cleaner when combined with wrapper function exports. `index.ts` import needs update in Step 11.
+- **`handleUrl`**: Sync, returns `boolean` — matches native SDK's synchronous `Wearables.shared.handleUrl(url) -> Bool`.
+- **Web module**: Uses `registerWebModule` with a class where all methods throw. Wrapper functions also exported (matching `.ts` API surface) for platform-specific file resolution.
+- **Wrapper defaults**: `startStream` defaults to `{}` config, `capturePhoto` defaults to `"jpeg"` format.
+- **`addListener` typing**: Generic over `EMWDATModuleEvents` keys — ensures event name + listener payload are type-linked.
+- **Build note**: After step 2, remaining errors are `EMWDATView.tsx`/`.web.tsx` (Step 15) and `index.ts` no default export (Step 11).
+
 ---
 
 ## Native SDK API (MWDAT 0.4)

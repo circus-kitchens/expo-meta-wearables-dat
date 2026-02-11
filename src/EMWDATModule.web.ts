@@ -1,15 +1,115 @@
 import { registerWebModule, NativeModule } from "expo";
 
-import { EMWDATModuleEvents } from "./EMWDAT.types";
+import type { EMWDATModuleEvents } from "./EMWDAT.types";
 
-class EMWDATModule extends NativeModule<EMWDATModuleEvents> {
-  PI = Math.PI;
-  async setValueAsync(value: string): Promise<void> {
-    this.emit("onChange", { value });
+const NOT_SUPPORTED = "EMWDAT is not supported on web";
+
+function unsupported(): never {
+  throw new Error(NOT_SUPPORTED);
+}
+
+class EMWDATWebModule extends NativeModule<EMWDATModuleEvents> {
+  setLogLevel(): void {
+    unsupported();
   }
-  hello() {
-    return "Hello world! 👋";
+  configure(): Promise<void> {
+    unsupported();
+  }
+  getRegistrationState(): string {
+    unsupported();
+  }
+  getRegistrationStateAsync(): Promise<string> {
+    unsupported();
+  }
+  startRegistration(): Promise<void> {
+    unsupported();
+  }
+  startUnregistration(): Promise<void> {
+    unsupported();
+  }
+  handleUrl(): boolean {
+    unsupported();
+  }
+  checkPermissionStatus(): Promise<string> {
+    unsupported();
+  }
+  requestPermission(): Promise<string> {
+    unsupported();
+  }
+  getDevices(): Promise<never[]> {
+    unsupported();
+  }
+  getDevice(): Promise<null> {
+    unsupported();
+  }
+  getStreamState(): Promise<string> {
+    unsupported();
+  }
+  startStream(): Promise<void> {
+    unsupported();
+  }
+  stopStream(): Promise<void> {
+    unsupported();
+  }
+  capturePhoto(): Promise<void> {
+    unsupported();
   }
 }
 
-export default registerWebModule(EMWDATModule, "EMWDATModule");
+/** Web module — all methods throw "not supported". */
+export const EMWDATModule = registerWebModule(EMWDATWebModule, "EMWDAT");
+
+// =============================================================================
+// Wrapper functions (matching EMWDATModule.ts exports — all throw on web)
+// =============================================================================
+
+export function addListener(): null {
+  console.warn("[EMWDAT] Not supported on web");
+  return null;
+}
+
+export function setLogLevel(): void {
+  unsupported();
+}
+export async function configure(): Promise<void> {
+  unsupported();
+}
+export function getRegistrationState(): never {
+  unsupported();
+}
+export async function getRegistrationStateAsync(): Promise<never> {
+  unsupported();
+}
+export async function startRegistration(): Promise<void> {
+  unsupported();
+}
+export async function startUnregistration(): Promise<void> {
+  unsupported();
+}
+export function handleUrl(): never {
+  unsupported();
+}
+export async function checkPermissionStatus(): Promise<never> {
+  unsupported();
+}
+export async function requestPermission(): Promise<never> {
+  unsupported();
+}
+export async function getDevices(): Promise<never[]> {
+  unsupported();
+}
+export async function getDevice(): Promise<null> {
+  unsupported();
+}
+export async function getStreamState(): Promise<never> {
+  unsupported();
+}
+export async function startStream(): Promise<void> {
+  unsupported();
+}
+export async function stopStream(): Promise<void> {
+  unsupported();
+}
+export async function capturePhoto(): Promise<void> {
+  unsupported();
+}
