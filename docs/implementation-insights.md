@@ -54,6 +54,14 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **Config registration**: `expo-module.config.json` update deferred to Step 7 (`apple.appDelegateSubscribers: ["EMWDATAppDelegateSubscriber"]`).
 - **Build note**: Same SPM dependency requirement as steps 3-4 (step 7).
 
+## Step 6 Decisions
+
+- **Method-based API**: Module calls `setActive(_:)` and `setResizeMode(_:)` methods (v0.3 used property didSet). Methods match the Prop handler signatures in EMWDATModule.swift.
+- **Deactivation cleanup**: Uses `removeFrameCallback()` (v0.3 set empty closure `{ _ in }`). Cleaner — nil callback means StreamSessionManager skips forwarding entirely.
+- **No separate view module**: v0.3 had a standalone `MetaWearablesStreamViewModule: Module`. In v0.4 the View definition lives inside `EMWDATModule.definition()` (step 4).
+- **@MainActor bridging**: `setActive` wraps StreamSessionManager calls in `Task { @MainActor in }` — same pattern as v0.3. Needed because ExpoView methods aren't @MainActor-annotated even though they run on main thread.
+- **Build note**: Same SPM dependency requirement as steps 3-5 (step 7). File references StreamSessionManager and EMWDATLogger.
+
 ---
 
 ## Native SDK API (MWDAT 0.4)
