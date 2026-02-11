@@ -46,6 +46,14 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **AsyncFunction pattern**: All @MainActor calls use explicit `Promise` + `Task { @MainActor in }` pattern (proven v0.3 approach). Expo's `.runOnQueue(.main)` doesn't satisfy Swift's @MainActor isolation.
 - **Build note**: References `EMWDATStreamView` (step 6). Same SPM dependency requirement as step 3 (step 7).
 
+## Step 5 Decisions
+
+- **Direct SDK call**: `Wearables.shared.handleUrl(url)` called directly — no dependency on `WearablesManager` init order (subscriber runs before module `OnCreate`).
+- **No logging**: Subscriber kept minimal; `WearablesManager.handleUrl()` already logs when URLs come through the JS `handleUrl()` path or notification backup.
+- **Improvement over v0.3**: v0.3 had no `AppDelegateSubscriber` — relied solely on `NotificationCenter` (`MetaWearablesURLCallback`). The subscriber is the Expo-native way to intercept `application(_:open:options:)`.
+- **Config registration**: `expo-module.config.json` update deferred to Step 7 (`apple.appDelegateSubscribers: ["EMWDATAppDelegateSubscriber"]`).
+- **Build note**: Same SPM dependency requirement as steps 3-4 (step 7).
+
 ---
 
 ## Native SDK API (MWDAT 0.4)
