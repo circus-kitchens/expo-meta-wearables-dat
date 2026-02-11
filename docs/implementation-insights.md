@@ -79,6 +79,18 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **EMWDATView**: Simple `TextView` centered on black background with "EMWDAT is not supported on Android" message. No WebView or complex layout.
 - **Build note**: Same pre-existing TS errors (`EMWDATView.tsx`/`.web.tsx` from step 15, `index.ts` from step 11). Android stubs don't introduce new issues.
 
+## Step 9 Decisions
+
+- **Ref-based guards**: All validation guards use refs (`isConfiguredRef`, `registrationStateRef`, `permissionStatusRef`, `streamStateRef`) instead of state values in `useCallback` deps. This eliminates stale closures and gives every action a stable identity (never recreated).
+- **Sync helpers**: `syncIsConfigured`, `syncRegistrationState`, `syncPermissionStatus`, `syncStreamState` update both ref and state atomically — single source of truth.
+- **Callback ref pattern**: `callbacksRef.current = callbacks` assigned on every render (no `useEffect` needed). Single `useEffect` with empty deps for all 8 event listeners.
+- **lastError is stream-specific**: Type `StreamSessionError | null`. Configuration errors are thrown directly, not stored in `lastError`.
+- **onVideoFrame**: Added listener (missing in v0.3) — forwards event payload to callback.
+- **refreshDevices**: Returns `Promise<Device[]>` (v0.3 returned `Promise<Device[] | undefined>`). Throws if not configured (consistent with other guards).
+- **Auto-configure**: Runs once on mount via `useEffect` with empty deps. Uses `isConfiguredRef` guard (idempotent). The `configure` callback depends only on `logLevel` — stable unless user changes options.
+- **Stream error auto-stop**: On `onStreamError`, sets `lastError`, calls `nativeStopStream().catch(() => {}).finally(() => syncStreamState("stopped"))` — same v0.3 pattern.
+- **Build note**: Same pre-existing TS errors (`EMWDATView.tsx`/`.web.tsx` from step 15, `index.ts` from step 11). No new errors from this step.
+
 ---
 
 ## Native SDK API (MWDAT 0.4)
