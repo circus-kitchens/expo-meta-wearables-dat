@@ -162,11 +162,6 @@ export default function App() {
 
           {/* Streaming */}
           <Section title="Streaming">
-            {permissionStatus !== "granted" && (
-              <Text style={[styles.hint, { marginBottom: 8 }]}>
-                Camera permission required to start streaming.
-              </Text>
-            )}
             <Text style={styles.optionLabel}>Resolution</Text>
             <OptionRow
               options={RESOLUTIONS}
@@ -184,11 +179,19 @@ export default function App() {
             <Row>
               <Btn
                 label="Start Stream"
-                onPress={safe(() => startStream({ resolution, frameRate, videoCodec: "raw" }))}
+                variant="success"
+                onPress={safe(async () => {
+                  if (permissionStatus !== "granted") {
+                    const status = await requestPermission("camera");
+                    if (status !== "granted") {
+                      throw new Error("Camera permission is required to stream.");
+                    }
+                  }
+                  await startStream({ resolution, frameRate, videoCodec: "raw" });
+                })}
                 disabled={
                   !isConfigured ||
                   registrationState !== "registered" ||
-                  permissionStatus !== "granted" ||
                   streamState === "streaming" ||
                   streamState === "starting"
                 }
@@ -209,6 +212,7 @@ export default function App() {
             />
             <Btn
               label={`Capture Photo (${photoFormat.toUpperCase()})`}
+              variant="success"
               onPress={safe(() => capturePhoto(photoFormat))}
               disabled={streamState !== "streaming"}
             />
@@ -366,9 +370,10 @@ function Btn({
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: "default" | "destructive";
+  variant?: "default" | "destructive" | "success";
 }) {
   const isDestructive = variant === "destructive";
+  const isSuccess = variant === "success";
   return (
     <Pressable
       onPress={onPress}
@@ -376,8 +381,15 @@ function Btn({
       style={({ pressed }) => [
         styles.btn,
         isDestructive && styles.btnDestructive,
+        isSuccess && styles.btnSuccess,
         disabled && styles.btnDisabled,
-        pressed && !disabled && (isDestructive ? styles.btnDestructivePressed : styles.btnPressed),
+        pressed &&
+          !disabled &&
+          (isDestructive
+            ? styles.btnDestructivePressed
+            : isSuccess
+              ? styles.btnSuccessPressed
+              : styles.btnPressed),
       ]}
     >
       <Text style={[styles.btnText, disabled && styles.btnTextDisabled]}>{label}</Text>
@@ -557,6 +569,12 @@ const styles = StyleSheet.create({
   },
   btnPressed: {
     backgroundColor: "#2563eb",
+  },
+  btnSuccess: {
+    backgroundColor: "#22c55e",
+  },
+  btnSuccessPressed: {
+    backgroundColor: "#16a34a",
   },
   btnDestructivePressed: {
     backgroundColor: "#dc2626",

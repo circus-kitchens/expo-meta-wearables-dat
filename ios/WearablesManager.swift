@@ -169,6 +169,14 @@ public final class WearablesManager {
             "deviceId": deviceId,
             "linkState": mapLinkState(linkState)
         ])
+
+        // Re-emit full device list so JS side gets updated device data
+        emitEvent("onDevicesChange", [
+            "devices": currentDevices.compactMap { id -> [String: Any]? in
+                guard let device = Wearables.shared.deviceForIdentifier(id) else { return nil }
+                return serializeDevice(device)
+            }
+        ])
     }
 
     // MARK: - Registration
