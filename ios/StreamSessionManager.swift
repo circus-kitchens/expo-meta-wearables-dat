@@ -187,11 +187,18 @@ public final class StreamSessionManager {
             try photoData.data.write(to: filePath)
             logger.info("StreamSession", "Photo saved", context: ["path": filePath.path])
 
-            emitEvent("onPhotoCaptured", [
+            var payload: [String: Any] = [
                 "filePath": filePath.path,
                 "format": mapPhotoFormat(photoData.format),
                 "timestamp": Int(Date().timeIntervalSince1970 * 1000)
-            ])
+            ]
+
+            if let image = UIImage(data: photoData.data) {
+                payload["width"] = Int(image.size.width * image.scale)
+                payload["height"] = Int(image.size.height * image.scale)
+            }
+
+            emitEvent("onPhotoCaptured", payload)
         } catch {
             logger.error("StreamSession", "Failed to save photo", error: error)
         }

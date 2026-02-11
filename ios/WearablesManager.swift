@@ -151,12 +151,7 @@ public final class WearablesManager {
         }
 
         currentDevices = devices
-        emitEvent("onDevicesChange", [
-            "devices": devices.compactMap { id -> [String: Any]? in
-                guard let device = Wearables.shared.deviceForIdentifier(id) else { return nil }
-                return serializeDevice(device)
-            }
-        ])
+        emitDeviceList()
     }
 
     private func handleDeviceLinkStateChange(deviceId: DeviceIdentifier, linkState: LinkState) {
@@ -171,6 +166,18 @@ public final class WearablesManager {
         ])
 
         // Re-emit full device list so JS side gets updated device data
+        emitDeviceList()
+
+        // Delayed re-emit: properties like compatibility may update after connection is established
+        if linkState == .connected {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                self?.emitDeviceList()
+            }
+        }
+    }
+
+    private func emitDeviceList() {
         emitEvent("onDevicesChange", [
             "devices": currentDevices.compactMap { id -> [String: Any]? in
                 guard let device = Wearables.shared.deviceForIdentifier(id) else { return nil }

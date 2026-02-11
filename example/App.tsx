@@ -7,7 +7,6 @@ import type {
   StreamingResolution,
   StreamSessionState,
   RegistrationState,
-  PermissionStatus,
 } from "expo-meta-wearables-dat";
 import { useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -34,7 +33,6 @@ export default function App() {
     // Actions
     startRegistration,
     startUnregistration,
-    checkPermissionStatus,
     requestPermission,
     refreshDevices,
     startStream,
@@ -101,8 +99,8 @@ export default function App() {
             />
             <StatusRow
               label="Permission"
-              value={permissionStatus}
-              color={permissionColor(permissionStatus)}
+              value={permissionStatus === "granted" ? "granted" : "not granted"}
+              color={permissionStatus === "granted" ? "#22c55e" : "#ef4444"}
             />
             <StatusRow label="Stream" value={streamState} color={streamColor(streamState)} />
             {lastError && (
@@ -116,7 +114,11 @@ export default function App() {
               <Btn
                 label="Register"
                 onPress={safe(startRegistration)}
-                disabled={!isConfigured || registrationState === "registered"}
+                disabled={
+                  !isConfigured ||
+                  registrationState === "registered" ||
+                  registrationState === "registering"
+                }
               />
               <Btn
                 label="Unregister"
@@ -130,22 +132,15 @@ export default function App() {
 
           {/* Permissions */}
           <Section title="Permissions">
-            <Row>
-              <Btn
-                label="Check"
-                onPress={safe(() => checkPermissionStatus("camera"))}
-                disabled={!isConfigured}
-              />
-              <Btn
-                label="Request"
-                onPress={safe(() => requestPermission("camera"))}
-                disabled={
-                  !isConfigured ||
-                  registrationState !== "registered" ||
-                  permissionStatus === "granted"
-                }
-              />
-            </Row>
+            <Btn
+              label="Request Camera Permission"
+              onPress={safe(() => requestPermission("camera"))}
+              disabled={
+                !isConfigured ||
+                registrationState !== "registered" ||
+                permissionStatus === "granted"
+              }
+            />
             {permissionStatus === "granted" && (
               <Text style={styles.hint}>Camera permission already granted.</Text>
             )}
@@ -284,9 +279,9 @@ export default function App() {
 // =============================================================================
 
 const RESOLUTIONS = [
-  { label: "Low\n360x640", value: "low" },
-  { label: "Med\n504x896", value: "medium" },
-  { label: "High\n720x1280", value: "high" },
+  { label: "Low\n(360x640)", value: "low" },
+  { label: "Medium\n(504x896)", value: "medium" },
+  { label: "High\n(720x1280)", value: "high" },
 ];
 
 const FRAME_RATES = [
@@ -443,10 +438,6 @@ function registrationColor(state: RegistrationState): string {
     default:
       return "#94a3b8";
   }
-}
-
-function permissionColor(status: PermissionStatus): string {
-  return status === "granted" ? "#22c55e" : "#ef4444";
 }
 
 function streamColor(state: StreamSessionState): string {
