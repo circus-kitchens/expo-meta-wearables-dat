@@ -31,7 +31,11 @@ export type DeviceIdentifier = string;
 
 export type LinkState = "connected" | "disconnected" | "connecting";
 
-export type Compatibility = "compatible" | "incompatible";
+export type Compatibility =
+  | "compatible"
+  | "undefined"
+  | "deviceUpdateRequired"
+  | "sdkUpdateRequired";
 
 export type DeviceType =
   | "rayBanMeta"
@@ -40,8 +44,10 @@ export type DeviceType =
   | "metaRayBanDisplay"
   | "unknown";
 
+/** Forward declaration — SDK 0.4 has no public publisher for hinge state yet. */
 export type HingeState = "open" | "closed";
 
+/** Forward declaration — SDK 0.4 has no public publisher for device state yet. */
 export interface DeviceState {
   batteryLevel: number;
   hingeState: HingeState;
@@ -110,8 +116,8 @@ export interface PhotoData {
 // =============================================================================
 
 /**
- * DeviceStateSession lifecycle: stopped → waitingForDevice → running/paused → unknown
- * Not exposed via the hook in v0.4 — included for SDK completeness.
+ * Device session state lifecycle: stopped → waitingForDevice → running/paused → unknown
+ * Exposed via onDeviceSessionStateChange event and deviceSessionStates in the hook.
  */
 export type SessionState = "stopped" | "waitingForDevice" | "running" | "paused" | "unknown";
 
@@ -181,6 +187,14 @@ export type EMWDATModuleEvents = {
   onPhotoCaptured: (payload: PhotoData) => void;
   onStreamError: (payload: StreamSessionError) => void;
   onPermissionStatusChange: (payload: { permission: Permission; status: PermissionStatus }) => void;
+  onCompatibilityChange: (payload: {
+    deviceId: DeviceIdentifier;
+    compatibility: Compatibility;
+  }) => void;
+  onDeviceSessionStateChange: (payload: {
+    deviceId: DeviceIdentifier;
+    sessionState: SessionState;
+  }) => void;
 };
 
 export type EMWDATEventName = keyof EMWDATModuleEvents;
@@ -198,6 +212,8 @@ export interface MetaWearablesCallbacks {
   onPhotoCaptured?: (photo: PhotoData) => void;
   onStreamError?: (error: StreamSessionError) => void;
   onPermissionStatusChange?: (permission: Permission, status: PermissionStatus) => void;
+  onCompatibilityChange?: (deviceId: DeviceIdentifier, compatibility: Compatibility) => void;
+  onDeviceSessionStateChange?: (deviceId: DeviceIdentifier, sessionState: SessionState) => void;
 }
 
 // =============================================================================
@@ -219,6 +235,7 @@ export interface UseMetaWearablesReturn {
   devices: Device[];
   streamState: StreamSessionState;
   lastError: StreamSessionError | null;
+  deviceSessionStates: Record<DeviceIdentifier, SessionState>;
 
   // Actions
   configure: () => Promise<void>;

@@ -16,7 +16,9 @@ public class EMWDATModule: Module {
             "onVideoFrame",
             "onPhotoCaptured",
             "onStreamError",
-            "onPermissionStatusChange"
+            "onPermissionStatusChange",
+            "onCompatibilityChange",
+            "onDeviceSessionStateChange"
         )
 
         // MARK: - Lifecycle
@@ -121,6 +123,15 @@ public class EMWDATModule: Module {
                 do {
                     let handled = try await Wearables.shared.handleUrl(parsedUrl)
                     promise.resolve(handled)
+                } catch let error as WearablesHandleURLError {
+                    switch error {
+                    case .registrationError:
+                        promise.reject("HANDLE_URL_REGISTRATION_ERROR", "\(error)")
+                    case .unregistrationError:
+                        promise.reject("HANDLE_URL_UNREGISTRATION_ERROR", "\(error)")
+                    @unknown default:
+                        promise.reject("HANDLE_URL_ERROR", "\(error)")
+                    }
                 } catch {
                     self.logger.error("Module", "handleUrl failed", error: error)
                     promise.resolve(false)

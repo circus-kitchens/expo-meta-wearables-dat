@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "expo.modules.emwdat.example",
-      "deploymentTarget": "16.0"
+      "appleTeamId": "L2RUMLW994"
     },
     "android": {
       "adaptiveIcon": {
@@ -29,8 +29,15 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.0"
+          }
+        }
+      ],
       [
         "../app.plugin.cjs",
         {

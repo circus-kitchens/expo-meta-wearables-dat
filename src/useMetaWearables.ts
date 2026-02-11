@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
+  Compatibility,
   Device,
   DeviceIdentifier,
   LogLevel,
@@ -8,6 +9,7 @@ import type {
   PermissionStatus,
   PhotoCaptureFormat,
   RegistrationState,
+  SessionState,
   StreamSessionConfig,
   StreamSessionError,
   StreamSessionState,
@@ -79,6 +81,9 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
   const [devices, setDevices] = useState<Device[]>([]);
   const [streamState, setStreamState] = useState<StreamSessionState>("stopped");
   const [lastError, setLastError] = useState<StreamSessionError | null>(null);
+  const [deviceSessionStates, setDeviceSessionStates] = useState<
+    Record<DeviceIdentifier, SessionState>
+  >({});
 
   // Sync helpers — update both ref and state
   const syncIsConfigured = useCallback((v: boolean) => {
@@ -122,6 +127,7 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
         } else {
           syncPermissionStatus("denied");
           syncStreamState("stopped");
+          setDeviceSessionStates({});
         }
       }),
 
@@ -162,6 +168,28 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
           syncPermissionStatus(e.status);
         }
         callbacksRef.current.onPermissionStatusChange?.(e.permission, e.status);
+      }),
+
+      addListener("onCompatibilityChange", (e) => {
+        setDevices((prev) =>
+          prev.map((d) =>
+            d.identifier === e.deviceId
+              ? { ...d, compatibility: e.compatibility as Compatibility }
+              : d
+          )
+        );
+        callbacksRef.current.onCompatibilityChange?.(e.deviceId, e.compatibility as Compatibility);
+      }),
+
+      addListener("onDeviceSessionStateChange", (e) => {
+        setDeviceSessionStates((prev) => ({
+          ...prev,
+          [e.deviceId]: e.sessionState as SessionState,
+        }));
+        callbacksRef.current.onDeviceSessionStateChange?.(
+          e.deviceId,
+          e.sessionState as SessionState
+        );
       }),
     ];
 
@@ -309,6 +337,7 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
     devices,
     streamState,
     lastError,
+    deviceSessionStates,
 
     // Actions
     configure,

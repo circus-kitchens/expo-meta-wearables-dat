@@ -22,6 +22,8 @@ public final class WearablesManager {
     private var registrationStateToken: AnyListenerToken?
     private var devicesToken: AnyListenerToken?
     private var deviceLinkStateTokens: [DeviceIdentifier: AnyListenerToken] = [:]
+    private var deviceCompatibilityTokens: [DeviceIdentifier: AnyListenerToken] = [:]
+    private var deviceSessionStateTokens: [DeviceIdentifier: AnyListenerToken] = [:]
     private var urlCallbackObserver: NSObjectProtocol?
 
     // MARK: - Cached State
@@ -131,22 +133,44 @@ public final class WearablesManager {
         let addedDevices = newDevices.subtracting(previousDevices)
         let removedDevices = previousDevices.subtracting(newDevices)
 
-        // Remove link state listeners for removed devices
+        // Remove listeners for removed devices
         for deviceId in removedDevices {
             deviceLinkStateTokens[deviceId] = nil
-            logger.debug("Manager", "Removed link state listener", context: ["deviceId": deviceId])
+            deviceCompatibilityTokens[deviceId] = nil
+            deviceSessionStateTokens[deviceId] = nil
+            logger.debug("Manager", "Removed device listeners", context: ["deviceId": deviceId])
         }
 
-        // Add link state listeners for new devices
+        // Add listeners for new devices
         for deviceId in addedDevices {
             if let device = Wearables.shared.deviceForIdentifier(deviceId) {
-                let token = device.addLinkStateListener { [weak self] linkState in
+                // Link state listener
+                let linkToken = device.addLinkStateListener { [weak self] linkState in
                     Task { @MainActor in
                         self?.handleDeviceLinkStateChange(deviceId: deviceId, linkState: linkState)
                     }
                 }
-                deviceLinkStateTokens[deviceId] = token
-                logger.debug("Manager", "Added link state listener", context: ["deviceId": deviceId])
+                deviceLinkStateTokens[deviceId] = linkToken
+
+                // Compatibility listener
+                let compatToken = device.addCompatibilityListener { [weak self] compatibility in
+                    Task { @MainActor in
+                        self?.handleDeviceCompatibilityChange(deviceId: deviceId, compatibility: compatibility)
+                    }
+                }
+                deviceCompatibilityTokens[deviceId] = compatToken
+
+                // Session state listener (async)
+                Task { @MainActor [weak self] in
+                    let sessionToken = await Wearables.shared.addDeviceSessionStateListener(forDeviceId: deviceId) { [weak self] state in
+                        Task { @MainActor in
+                            self?.handleDeviceSessionStateChange(deviceId: deviceId, sessionState: state)
+                        }
+                    }
+                    self?.deviceSessionStateTokens[deviceId] = sessionToken
+                }
+
+                logger.debug("Manager", "Added device listeners", context: ["deviceId": deviceId])
             }
         }
 
@@ -175,6 +199,33 @@ public final class WearablesManager {
                 self?.emitDeviceList()
             }
         }
+    }
+
+    private func handleDeviceCompatibilityChange(deviceId: DeviceIdentifier, compatibility: Compatibility) {
+        logger.info("Manager", "Device compatibility changed", context: [
+            "deviceId": deviceId,
+            "compatibility": String(describing: compatibility)
+        ])
+
+        emitEvent("onCompatibilityChange", [
+            "deviceId": deviceId,
+            "compatibility": mapCompatibility(compatibility)
+        ])
+
+        // Re-emit full device list so JS side gets updated device data
+        emitDeviceList()
+    }
+
+    private func handleDeviceSessionStateChange(deviceId: DeviceIdentifier, sessionState: SessionState) {
+        logger.info("Manager", "Device session state changed", context: [
+            "deviceId": deviceId,
+            "sessionState": String(describing: sessionState)
+        ])
+
+        emitEvent("onDeviceSessionStateChange", [
+            "deviceId": deviceId,
+            "sessionState": mapSessionState(sessionState)
+        ])
     }
 
     private func emitDeviceList() {
@@ -258,7 +309,7 @@ public final class WearablesManager {
             "name": device.name,
             "linkState": mapLinkState(device.linkState),
             "deviceType": mapDeviceType(device.deviceType()),
-            "compatibility": device.compatibility() == .compatible ? "compatible" : "incompatible"
+            "compatibility": mapCompatibility(device.compatibility())
         ]
     }
 
@@ -291,6 +342,27 @@ public final class WearablesManager {
         }
     }
 
+    private func mapCompatibility(_ compat: Compatibility) -> String {
+        switch compat {
+        case .compatible: return "compatible"
+        case .undefined: return "undefined"
+        case .deviceUpdateRequired: return "deviceUpdateRequired"
+        case .sdkUpdateRequired: return "sdkUpdateRequired"
+        @unknown default: return "undefined"
+        }
+    }
+
+    private func mapSessionState(_ state: SessionState) -> String {
+        switch state {
+        case .stopped: return "stopped"
+        case .waitingForDevice: return "waitingForDevice"
+        case .running: return "running"
+        case .paused: return "paused"
+        case .unknown: return "unknown"
+        @unknown default: return "unknown"
+        }
+    }
+
     private func mapDeviceType(_ deviceType: DeviceType) -> String {
         switch deviceType {
         case .rayBanMeta: return "rayBanMeta"
@@ -309,6 +381,8 @@ public final class WearablesManager {
         registrationStateToken = nil
         devicesToken = nil
         deviceLinkStateTokens.removeAll()
+        deviceCompatibilityTokens.removeAll()
+        deviceSessionStateTokens.removeAll()
 
         if let observer = urlCallbackObserver {
             NotificationCenter.default.removeObserver(observer)
