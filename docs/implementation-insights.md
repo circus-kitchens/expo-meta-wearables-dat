@@ -91,6 +91,14 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **Stream error auto-stop**: On `onStreamError`, sets `lastError`, calls `nativeStopStream().catch(() => {}).finally(() => syncStreamState("stopped"))` — same v0.3 pattern.
 - **Build note**: Same pre-existing TS errors (`EMWDATView.tsx`/`.web.tsx` from step 15, `index.ts` from step 11). No new errors from this step.
 
+## Step 10 Decisions
+
+- **View name**: `requireNativeView("EMWDAT")` — view is defined inside `EMWDATModule.definition()`, so Expo resolves it by the module's `Name("EMWDAT")`, not a separate view name.
+- **Default props**: `isActive` defaults to `false`, `resizeMode` defaults to `"contain"` (matches v0.3 pattern).
+- **Named export**: `EMWDATStreamView` (not default export) — consistent with v0.3's `MetaWearablesStreamView` and the hook's named export pattern.
+- **Types reused**: `EMWDATStreamViewProps` already defined in `EMWDAT.types.ts` (step 1) — no new types needed.
+- **Build note**: Same pre-existing TS errors (`EMWDATView.tsx`/`.web.tsx` from step 15, `index.ts` from step 11). No new errors from this step.
+
 ---
 
 ## Native SDK API (MWDAT 0.4)
