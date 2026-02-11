@@ -71,6 +71,14 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **xcconfig**: Added `SWIFT_COMPILATION_MODE: wholemodule` (from v0.3) for better build performance alongside `DEFINES_MODULE`.
 - **Build note**: Pre-existing TS errors remain (`EMWDATView.tsx`/`.web.tsx` from step 15, `index.ts` from step 11). No new errors introduced.
 
+## Step 8 Decisions
+
+- **CodedException**: Uses `expo.modules.kotlin.exception.CodedException("PLATFORM_NOT_SUPPORTED", ...)` — Expo's standard exception class for module errors. Private `platformNotSupported(): Nothing` helper keeps stubs DRY.
+- **Function signatures**: Match iOS module exactly — sync `Function` for `setLogLevel`, `getRegistrationState`, `handleUrl`; `AsyncFunction` for all others. Parameter types match what JS sends (e.g. `Map<String, Any>` for `startStream` config).
+- **View props**: `isActive` and `resizeMode` prop handlers are no-ops (empty lambdas) — view is just a placeholder, no rendering logic needed.
+- **EMWDATView**: Simple `TextView` centered on black background with "EMWDAT is not supported on Android" message. No WebView or complex layout.
+- **Build note**: Same pre-existing TS errors (`EMWDATView.tsx`/`.web.tsx` from step 15, `index.ts` from step 11). Android stubs don't introduce new issues.
+
 ---
 
 ## Native SDK API (MWDAT 0.4)

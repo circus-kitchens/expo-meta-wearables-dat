@@ -1,50 +1,109 @@
 package expo.modules.emwdat
 
+import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import java.net.URL
 
 class EMWDATModule : Module() {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
-  override fun definition() = ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('EMWDAT')` in JavaScript.
-    Name("EMWDAT")
-
-    // Defines constant property on the module.
-    Constant("PI") {
-      Math.PI
+    private fun platformNotSupported(): Nothing {
+        throw CodedException("PLATFORM_NOT_SUPPORTED", "EMWDAT is not supported on Android", null)
     }
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
+    override fun definition() = ModuleDefinition {
+        Name("EMWDAT")
 
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      "Hello world! 👋"
-    }
+        Events(
+            "onRegistrationStateChange",
+            "onDevicesChange",
+            "onLinkStateChange",
+            "onStreamStateChange",
+            "onVideoFrame",
+            "onPhotoCaptured",
+            "onStreamError",
+            "onPermissionStatusChange"
+        )
 
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent("onChange", mapOf(
-        "value" to value
-      ))
-    }
+        // MARK: - Logging
 
-    // Enables the module to be used as a native view. Definition components that are accepted as part of
-    // the view definition: Prop, Events.
-    View(EMWDATView::class) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { view: EMWDATView, url: URL ->
-        view.webView.loadUrl(url.toString())
-      }
-      // Defines an event that the view can send to JavaScript.
-      Events("onLoad")
+        Function("setLogLevel") { _: String ->
+            platformNotSupported()
+        }
+
+        // MARK: - Configuration
+
+        AsyncFunction("configure") {
+            platformNotSupported()
+        }
+
+        // MARK: - Registration
+
+        Function("getRegistrationState") {
+            platformNotSupported()
+        }
+
+        AsyncFunction("getRegistrationStateAsync") {
+            platformNotSupported()
+        }
+
+        AsyncFunction("startRegistration") {
+            platformNotSupported()
+        }
+
+        AsyncFunction("startUnregistration") {
+            platformNotSupported()
+        }
+
+        // MARK: - URL Handling
+
+        Function("handleUrl") { _: String ->
+            platformNotSupported()
+        }
+
+        // MARK: - Permissions
+
+        AsyncFunction("checkPermissionStatus") { _: String ->
+            platformNotSupported()
+        }
+
+        AsyncFunction("requestPermission") { _: String ->
+            platformNotSupported()
+        }
+
+        // MARK: - Devices
+
+        AsyncFunction("getDevices") {
+            platformNotSupported()
+        }
+
+        AsyncFunction("getDevice") { _: String ->
+            platformNotSupported()
+        }
+
+        // MARK: - Streaming
+
+        AsyncFunction("getStreamState") {
+            platformNotSupported()
+        }
+
+        AsyncFunction("startStream") { _: Map<String, Any> ->
+            platformNotSupported()
+        }
+
+        AsyncFunction("stopStream") {
+            platformNotSupported()
+        }
+
+        // MARK: - Photo Capture
+
+        AsyncFunction("capturePhoto") { _: String ->
+            platformNotSupported()
+        }
+
+        // MARK: - View
+
+        View(EMWDATView::class) {
+            Prop("isActive") { _: EMWDATView, _: Boolean -> }
+            Prop("resizeMode") { _: EMWDATView, _: String -> }
+        }
     }
-  }
 }
