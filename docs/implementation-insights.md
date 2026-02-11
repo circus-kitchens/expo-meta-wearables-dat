@@ -99,6 +99,12 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **Types reused**: `EMWDATStreamViewProps` already defined in `EMWDAT.types.ts` (step 1) — no new types needed.
 - **Build note**: Same pre-existing TS errors (`EMWDATView.tsx`/`.web.tsx` from step 15, `index.ts` from step 11). No new errors from this step.
 
+## Step 11 Decisions
+
+- **No default export**: Removed `export { default }` — `EMWDATModule` is a named export (per step 2 decision). All wrapper functions also re-exported for direct consumer use.
+- **Old view removed from exports**: `EMWDATView` import replaced by `EMWDATStreamView`. Old files (`EMWDATView.tsx`/`.web.tsx`) still exist but are no longer referenced by `index.ts`.
+- **Build note**: Only remaining TS errors are `EMWDATView.tsx`/`.web.tsx` (step 15). `index.ts` itself compiles cleanly.
+
 ---
 
 ## Native SDK API (MWDAT 0.4)
