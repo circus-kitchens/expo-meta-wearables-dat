@@ -21,7 +21,7 @@ Rewrite placeholder Expo module to bridge MWDAT iOS 0.4 SDK. Expose `useMetaWear
 | 9   | Hook             | `src/useMetaWearables.ts`                                                    | ✅     |
 | 10  | View component   | `src/EMWDATStreamView.tsx`                                                   | ✅     |
 | 11  | Exports          | `src/index.ts`                                                               | ✅     |
-| 12  | Config plugin    | `plugin/src/index.ts`                                                        | ❌     |
+| 12  | Config plugin    | `plugin/src/index.ts`                                                        | ✅     |
 | 13  | Example app      | `example/App.tsx`, `example/app.json`                                        | ❌     |
 | 14  | README           | `README.md`                                                                  | ❌     |
 | 15  | Cleanup          | Delete `src/EMWDATView.tsx`, `src/EMWDATView.web.tsx`                        | ❌     |

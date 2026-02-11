@@ -105,6 +105,18 @@ Reusable patterns, gotchas, and reference material for implementing EMWDAT v0.4.
 - **Old view removed from exports**: `EMWDATView` import replaced by `EMWDATStreamView`. Old files (`EMWDATView.tsx`/`.web.tsx`) still exist but are no longer referenced by `index.ts`.
 - **Build note**: Only remaining TS errors are `EMWDATView.tsx`/`.web.tsx` (step 15). `index.ts` itself compiles cleanly.
 
+## Step 12 Decisions
+
+- **ESM/CJS interop**: Root `package.json` has `"type": "module"`. Plugin directory has its own `plugin/package.json` with `"type": "commonjs"` to force CJS output from TypeScript compilation. This is needed because Expo's config plugin resolver uses `require()`.
+- **Entry point**: `app.plugin.cjs` at root (not `.js`) — `.cjs` extension forces CommonJS regardless of package `"type"` field. Expo's resolver finds `.cjs` via Node.js `require.resolve()`.
+- **Build**: `expo-module build plugin` and `expo-module prepare` auto-detect the `plugin/` directory and build it. No custom scripts needed.
+- **Dependencies added**: `@tsconfig/node18` and `@types/node` as devDependencies — required by `expo-module-scripts/tsconfig.plugin` extends chain.
+- **Merge strategy**: All Info.plist arrays (CFBundleURLTypes, LSApplicationQueriesSchemes, UIBackgroundModes, UISupportedExternalAccessoryProtocols) are merged with existing entries, not replaced. Uses `addUniqueStringToArray` helper for deduplication.
+- **urlScheme validation**: Strips `://` suffix with a `console.warn` — common mistake per SDK docs (TN2175 note about preprocessor stripping).
+- **MWDAT dict**: `AppLinkURLScheme` includes the `://` suffix (SDK requirement), `MetaAppID` defaults to `"0"` (Developer Mode).
+- **Props type**: Defined inline in plugin source (not imported from `src/EMWDAT.types.ts`) — plugin has separate tsconfig/build context with different rootDir, can't reference parent source files.
+- **Build note**: Same pre-existing TS errors (`EMWDATView.tsx`/`.web.tsx` from step 15). Plugin builds cleanly via `pnpm expo-module build plugin`.
+
 ---
 
 ## Native SDK API (MWDAT 0.4)
