@@ -5,6 +5,14 @@
   "description": "This package enables developers to utilize Meta's AI glasses (Meta Wearables DAT) in Expo + React Native applications.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
+  "files": [
+    "build",
+    "src",
+    "ios",
+    "android",
+    "plugin",
+    "expo-module.config.json"
+  ],
   "scripts": {
     "build": "expo-module build",
     "clean": "expo-module clean",
