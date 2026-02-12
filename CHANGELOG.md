@@ -1,3 +1,9 @@
+## [0.0.4](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.3...v0.0.4) (2026-02-12)
+
+### Bug Fixes
+
+- embed dynamic framework ([f1f0f6c](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/f1f0f6ce8cc958e22021838b24221552ac140727))
+
 ## [0.0.3](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.2...v0.0.3) (2026-02-12)
 
 ### Bug Fixes
