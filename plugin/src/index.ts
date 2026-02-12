@@ -45,9 +45,11 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
     return config;
   });
 
-  // Also set deployment target in the Xcode project build settings
+  // Set deployment target + embed MWDAT dynamic frameworks in the Xcode project
   config = withXcodeProject(config, (config) => {
     const project = config.modResults;
+
+    // Set deployment target on all app-level build configurations
     const configurations = project.pbxXCBuildConfigurationSection();
     for (const key in configurations) {
       const buildSettings = configurations[key].buildSettings;
@@ -55,6 +57,31 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
         buildSettings.IPHONEOS_DEPLOYMENT_TARGET = "16.0";
       }
     }
+
+    // Embed MWDATCamera & MWDATCore dynamic frameworks.
+    // The SPM products are linked via spm_dependency in the podspec but CocoaPods
+    // doesn't embed them — we add a shell script build phase to copy + sign them.
+    const target = project.getFirstTarget().uuid;
+    const shellScript = `
+FRAMEWORKS=("MWDATCamera" "MWDATCore")
+for fw in "\${FRAMEWORKS[@]}"; do
+  SRC="\${BUILT_PRODUCTS_DIR}/\${fw}.framework"
+  DST="\${BUILT_PRODUCTS_DIR}/\${FRAMEWORKS_FOLDER_PATH}/\${fw}.framework"
+  if [ -d "\${SRC}" ]; then
+    mkdir -p "$(dirname "\${DST}")"
+    cp -R "\${SRC}" "\${DST}"
+    if [ -n "\${EXPANDED_CODE_SIGN_IDENTITY}" ]; then
+      codesign --force --sign "\${EXPANDED_CODE_SIGN_IDENTITY}" --preserve-metadata=identifier,entitlements "\${DST}"
+    fi
+  fi
+done
+`.trim();
+
+    project.addBuildPhase([], "PBXShellScriptBuildPhase", "Embed MWDAT Frameworks", target, {
+      shellPath: "/bin/sh",
+      shellScript,
+    });
+
     return config;
   });
 
