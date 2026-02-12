@@ -9,7 +9,11 @@ public class EMWDATAppDelegateSubscriber: ExpoAppDelegateSubscriber {
     ) -> Bool {
         // handleUrl is async in SDK 0.4 — fire-and-forget since delegate must return synchronously
         Task {
-            _ = try? await Wearables.shared.handleUrl(url)
+            do {
+                _ = try await Wearables.shared.handleUrl(url)
+            } catch {
+                EMWDATLogger.shared.error("AppDelegate", "handleUrl failed", error: error)
+            }
         }
         return true
     }

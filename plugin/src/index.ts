@@ -1,8 +1,8 @@
 import {
   type ConfigPlugin,
-  IOSConfig,
   withInfoPlist,
   withPodfileProperties,
+  withXcodeProject,
 } from "expo/config-plugins";
 
 type EMWDATPluginProps = {
@@ -45,11 +45,29 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
     return config;
   });
 
+  // Also set deployment target in the Xcode project build settings
+  config = withXcodeProject(config, (config) => {
+    const project = config.modResults;
+    const configurations = project.pbxXCBuildConfigurationSection();
+    for (const key in configurations) {
+      const buildSettings = configurations[key].buildSettings;
+      if (buildSettings?.PRODUCT_BUNDLE_IDENTIFIER) {
+        buildSettings.IPHONEOS_DEPLOYMENT_TARGET = "16.0";
+      }
+    }
+    return config;
+  });
+
   return withInfoPlist(config, (config) => {
     const plist = config.modResults;
 
-    // URL scheme for Meta AI app callback
-    IOSConfig.Scheme.appendScheme(urlScheme, plist);
+    // URL scheme for Meta AI app callback — add to CFBundleURLTypes
+    const urlTypes: { CFBundleURLSchemes: string[] }[] = plist.CFBundleURLTypes ?? [];
+    const existingSchemes = urlTypes.flatMap((t) => t.CFBundleURLSchemes ?? []);
+    if (!existingSchemes.includes(urlScheme)) {
+      urlTypes.push({ CFBundleURLSchemes: [urlScheme] });
+    }
+    plist.CFBundleURLTypes = urlTypes;
 
     // LSApplicationQueriesSchemes — needed to discover Meta AI app
     addUniqueStringToArray(plist, "LSApplicationQueriesSchemes", "fb-viewapp");
@@ -68,6 +86,7 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
     const mwdatConfig: Record<string, string> = {
       AppLinkURLScheme: `${urlScheme}://`,
       MetaAppID: metaAppId,
+      TeamID: "$(DEVELOPMENT_TEAM)",
     };
     if (props.clientToken) {
       mwdatConfig.ClientToken = props.clientToken;
