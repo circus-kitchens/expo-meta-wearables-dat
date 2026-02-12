@@ -31,7 +31,7 @@
     },
     "plugins": [
       [
-        "../app.plugin.cjs",
+        "../app.plugin.js",
         {
           "urlScheme": "emwdat-example",
           "metaAppId": "879777611505837",
