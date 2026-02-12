@@ -7,7 +7,7 @@ const config: Options = {
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
     "@semantic-release/changelog",
-    "semantic-release-pnpm",
+    "@semantic-release/npm",
     [
       "@semantic-release/git",
       {
