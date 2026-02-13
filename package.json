@@ -94,9 +94,9 @@
     "node": ">=18"
   },
   "peerDependencies": {
-    "expo": "*",
-    "react": "*",
-    "react-native": "*"
+    "expo": ">=52",
+    "react": ">=18",
+    "react-native": ">=0.76"
   },
   "packageManager": "pnpm@10.29.2",
   "lint-staged": {
