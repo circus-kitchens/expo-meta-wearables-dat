@@ -1,3 +1,12 @@
+## [0.0.5](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.4...v0.0.5) (2026-02-13)
+
+### Bug Fixes
+
+- add missing clientToken to EMWDATPluginProps type ([00ce0b1](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/00ce0b1d4e9a55eb6972988631b323e507c8da13))
+- expose config error state, unify platform stubs, add CI badge ([70c0f9a](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/70c0f9ac412678f5740f0f4a43e682b11ed453b7))
+- set minimum peerDependency versions for expo, react, and react-native ([c425d84](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/c425d8454d0fc91059e0364bb52cbbecc3eba4cf))
+- use canonical git+https repository URL format ([5de7777](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/5de7777c5f85364b112217bb9abdbe3618eca951))
+
 ## [0.0.4](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.3...v0.0.4) (2026-02-12)
 
 ### Bug Fixes

@@ -1,6 +1,6 @@
 {
   "name": "expo-meta-wearables-dat",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "This package enables developers to utilize Meta's AI glasses (Meta Wearables DAT) in Expo + React Native applications.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
