@@ -56,7 +56,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/circus-kitchens/expo-meta-wearables-dat.git"
+    "url": "git+https://github.com/circus-kitchens/expo-meta-wearables-dat.git"
   },
   "bugs": {
     "url": "https://github.com/circus-kitchens/expo-meta-wearables-dat/issues"
