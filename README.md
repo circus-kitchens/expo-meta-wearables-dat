@@ -293,11 +293,22 @@ See [`src/EMWDAT.types.ts`](./src/EMWDAT.types.ts) for the full list.
 
 The `example/` directory contains a full demo app:
 
-```bash
-cd example
-npx expo prebuild --clean
-npx expo run:ios --device
-```
+1. Copy the example credentials and fill in your values:
+
+   ```bash
+   cd example
+   ```
+
+   Edit `app.json` and replace the placeholders:
+   - `YOUR_APPLE_TEAM_ID` — your Apple Developer Team ID
+   - `YOUR_META_APP_ID` — from the [Meta Wearables Developer Center](https://wearables.developer.meta.com/)
+   - `YOUR_CLIENT_TOKEN` — from the same Developer Center page
+
+2. Build and run:
+   ```bash
+   npx expo prebuild --clean
+   npx expo run:ios --device
+   ```
 
 > Requires a physical iOS device with a paired Meta Wearables device.
 
