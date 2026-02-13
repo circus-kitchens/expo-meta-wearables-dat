@@ -76,6 +76,8 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
   // ---------------------------------------------------------------------------
 
   const [isConfigured, setIsConfigured] = useState(false);
+  const [isConfiguring, setIsConfiguring] = useState(false);
+  const [configError, setConfigError] = useState<Error | null>(null);
   const [registrationState, setRegistrationState] = useState<RegistrationState>("unavailable");
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>("denied");
   const [devices, setDevices] = useState<Device[]>([]);
@@ -208,20 +210,31 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
       return;
     }
 
-    nativeSetLogLevel(logLevel);
-    await nativeConfigure();
-    syncIsConfigured(true);
+    setIsConfiguring(true);
+    setConfigError(null);
 
-    // Sync initial state
-    const [regState, deviceList, streamSt] = await Promise.all([
-      nativeGetRegistrationStateAsync(),
-      nativeGetDevices(),
-      nativeGetStreamState(),
-    ]);
+    try {
+      nativeSetLogLevel(logLevel);
+      await nativeConfigure();
+      syncIsConfigured(true);
 
-    syncRegistrationState(regState);
-    setDevices(deviceList);
-    syncStreamState(streamSt);
+      // Sync initial state
+      const [regState, deviceList, streamSt] = await Promise.all([
+        nativeGetRegistrationStateAsync(),
+        nativeGetDevices(),
+        nativeGetStreamState(),
+      ]);
+
+      syncRegistrationState(regState);
+      setDevices(deviceList);
+      syncStreamState(streamSt);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setConfigError(error);
+      throw error;
+    } finally {
+      setIsConfiguring(false);
+    }
   }, [logLevel, syncIsConfigured, syncRegistrationState, syncStreamState]);
 
   // Auto-configure on mount
@@ -332,6 +345,8 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
   return {
     // State
     isConfigured,
+    isConfiguring,
+    configError,
     registrationState,
     permissionStatus,
     devices,

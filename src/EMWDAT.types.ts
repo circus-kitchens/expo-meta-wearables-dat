@@ -230,6 +230,8 @@ export interface UseMetaWearablesOptions extends MetaWearablesCallbacks {
 export interface UseMetaWearablesReturn {
   // State
   isConfigured: boolean;
+  isConfiguring: boolean;
+  configError: Error | null;
   registrationState: RegistrationState;
   permissionStatus: PermissionStatus;
   devices: Device[];

@@ -53,7 +53,6 @@ export function addListener<E extends keyof EMWDATModuleEvents>(
   listener: EMWDATModuleEvents[E]
 ): { remove: () => void } | null {
   if (Platform.OS !== "ios") {
-    console.warn("[EMWDAT] Events are only supported on iOS");
     return null;
   }
   return EMWDATModule.addListener(eventName, listener);

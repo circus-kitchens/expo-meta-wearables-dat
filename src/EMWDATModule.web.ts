@@ -64,7 +64,6 @@ export const EMWDATModule = registerWebModule(EMWDATWebModule, "EMWDAT");
 // =============================================================================
 
 export function addListener(): null {
-  console.warn("[EMWDAT] Not supported on web");
   return null;
 }
 

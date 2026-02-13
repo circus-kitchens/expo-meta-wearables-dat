@@ -1,6 +1,7 @@
 # expo-meta-wearables-dat
 
 [![npm version](https://img.shields.io/npm/v/expo-meta-wearables-dat)](https://www.npmjs.com/package/expo-meta-wearables-dat)
+[![CI](https://github.com/circus-kitchens/expo-meta-wearables-dat/actions/workflows/ci.yml/badge.svg)](https://github.com/circus-kitchens/expo-meta-wearables-dat/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/expo-meta-wearables-dat)](./LICENSE)
 ![platform: iOS](https://img.shields.io/badge/platform-iOS-blue)
 
@@ -174,6 +175,8 @@ React hook that manages the full lifecycle of Meta Wearables integration.
 | Field                 | Type                           | Description                                                                                        |
 | --------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
 | `isConfigured`        | `boolean`                      | SDK configured                                                                                     |
+| `isConfiguring`       | `boolean`                      | `true` while `configure()` is in progress                                                          |
+| `configError`         | `Error \| null`                | Error from the last `configure()` call, or `null` if successful                                    |
 | `registrationState`   | `RegistrationState`            | `"unavailable"` \| `"available"` \| `"registering"` \| `"registered"`                              |
 | `permissionStatus`    | `PermissionStatus`             | `"granted"` \| `"denied"`                                                                          |
 | `devices`             | `Device[]`                     | Connected devices                                                                                  |
