@@ -1,3 +1,9 @@
+## [0.0.6](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.5...v0.0.6) (2026-02-13)
+
+### Bug Fixes
+
+- trigger release ([a369dda](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/a369ddab106e8259ce736aad0872885e038ca42c))
+
 ## [0.0.5](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.4...v0.0.5) (2026-02-13)
 
 ### Bug Fixes
