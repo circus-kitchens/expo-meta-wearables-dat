@@ -274,6 +274,8 @@ export interface EMWDATPluginProps {
   urlScheme: string;
   /** Meta App ID (defaults to "0") */
   metaAppId?: string;
+  /** Client Token from Meta Wearables Developer Center */
+  clientToken?: string;
   /** Custom NSBluetoothAlwaysUsageDescription */
   bluetoothUsageDescription?: string;
 }
