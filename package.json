@@ -11,14 +11,16 @@
     "android",
     "plugin",
     "app.plugin.js",
-    "expo-module.config.json"
+    "expo-module.config.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "expo-module build",
     "clean": "expo-module clean",
     "lint": "expo-module lint",
     "test": "expo-module test",
-    "preinstall": "npx only-allow pnpm",
     "prepare": "husky && expo-module prepare",
     "prepublishOnly": "expo-module prepublishOnly",
     "expo-module": "expo-module",
@@ -31,7 +33,16 @@
     "react-native",
     "expo",
     "expo-meta-wearables-dat",
-    "EMWDAT"
+    "EMWDAT",
+    "meta",
+    "wearables",
+    "glasses",
+    "ray-ban",
+    "camera",
+    "streaming",
+    "ios",
+    "bluetooth",
+    "dat"
   ],
   "repository": "https://github.com/circus-kitchens/expo-meta-wearables-dat",
   "bugs": {
@@ -64,6 +75,9 @@
     "semantic-release": "^25.0.3",
     "@semantic-release/npm": "^12.0.1",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "peerDependencies": {
     "expo": "*",
