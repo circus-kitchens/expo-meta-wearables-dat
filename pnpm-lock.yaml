@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       react:
-        specifier: '*'
+        specifier: '>=18'
         version: 19.1.0
     devDependencies:
       '@commitlint/cli':
