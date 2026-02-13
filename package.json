@@ -15,7 +15,8 @@
   "files": [
     "build",
     "src",
-    "ios",
+    "ios/*.podspec",
+    "ios/*.swift",
     "android",
     "plugin/build",
     "plugin/package.json",
