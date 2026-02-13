@@ -4,6 +4,13 @@
   "description": "This package enables developers to utilize Meta's AI glasses (Meta Wearables DAT) in Expo + React Native applications.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "default": "./build/index.js"
+    }
+  },
+  "sideEffects": false,
   "files": [
     "build",
     "src",
@@ -44,7 +51,13 @@
     "bluetooth",
     "dat"
   ],
-  "repository": "https://github.com/circus-kitchens/expo-meta-wearables-dat",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/circus-kitchens/expo-meta-wearables-dat.git"
+  },
   "bugs": {
     "url": "https://github.com/circus-kitchens/expo-meta-wearables-dat/issues"
   },
