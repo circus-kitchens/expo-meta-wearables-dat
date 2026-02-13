@@ -6,6 +6,12 @@
 
 Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart glasses) into React Native apps. Provides device registration, permissions, camera streaming, photo capture, and a React hook — all bridged from the official Meta Wearables DAT iOS SDK.
 
+> **Official SDK docs:** [Meta Wearables DAT — Developer Documentation](https://wearables.developer.meta.com/docs/develop)
+>
+> You must register your app in the [Meta Wearables Developer Center](https://wearables.developer.meta.com/) to obtain your App ID and Client Token.
+
+> **Disclaimer:** This project is **not affiliated with, endorsed by, or sponsored by Meta Platforms, Inc.** It is an independent, community-maintained wrapper around the publicly available Meta Wearables DAT iOS SDK.
+
 ## Non-goals
 
 - **Android** — not supported yet (stubs throw clear errors)
