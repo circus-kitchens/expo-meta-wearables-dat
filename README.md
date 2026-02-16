@@ -83,7 +83,7 @@ Add the plugin to your `app.json` / `app.config.js`:
       "expo-meta-wearables-dat",
       {
         "urlScheme": "myapp",
-        "metaAppId": "0",
+        "metaAppId": "",
         "bluetoothUsageDescription": "This app uses Bluetooth to connect to Meta Wearables."
       }
     ]
