@@ -85,7 +85,9 @@ public final class WearablesManager {
             queue: .main
         ) { [weak self] notification in
             guard let url = notification.userInfo?["url"] as? URL else {
-                self?.logger.warn("Manager", "URL callback received but URL is missing")
+                Task { @MainActor in
+                    self?.logger.warn("Manager", "URL callback received but URL is missing")
+                }
                 return
             }
             Task { @MainActor in

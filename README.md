@@ -66,12 +66,6 @@ yarn add expo-meta-wearables-dat
 npm install expo-meta-wearables-dat
 ```
 
-Then install pods:
-
-```bash
-cd ios && pod install
-```
-
 ## iOS Setup
 
 ### 1. Config plugin
@@ -85,7 +79,8 @@ Add the plugin to your `app.json` / `app.config.js`:
       "expo-meta-wearables-dat",
       {
         "urlScheme": "myapp",
-        "metaAppId": "",
+        "metaAppId": "YOUR_META_APP_ID",
+        "clientToken": "YOUR_CLIENT_TOKEN",
         "bluetoothUsageDescription": "This app uses Bluetooth to connect to Meta Wearables."
       }
     ]
@@ -93,12 +88,12 @@ Add the plugin to your `app.json` / `app.config.js`:
 }
 ```
 
-| Prop                        | Required | Description                                          |
-| --------------------------- | -------- | ---------------------------------------------------- |
-| `urlScheme`                 | Yes      | URL scheme for Meta AI app callback (e.g. `"myapp"`) |
-| `metaAppId`                 | No       | Meta App ID. Defaults to `""` (Developer Mode)       |
-| `clientToken`               | No       | Client Token from Wearables Developer Center         |
-| `bluetoothUsageDescription` | No       | Custom Bluetooth usage description                   |
+| Prop                        | Required | Description                                                                                                   |
+| --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `urlScheme`                 | Yes      | URL scheme for Meta AI app callback (e.g. `"myapp"`)                                                          |
+| `metaAppId`                 | No       | Meta App ID from [Wearables Developer Center](https://wearables.developer.meta.com/). Omit for Developer Mode |
+| `clientToken`               | No       | Client Token from Wearables Developer Center                                                                  |
+| `bluetoothUsageDescription` | No       | Custom Bluetooth usage description                                                                            |
 
 The plugin automatically sets:
 
@@ -111,26 +106,32 @@ The plugin automatically sets:
 - iOS deployment target to 16.0
 - Embeds MWDATCamera & MWDATCore dynamic frameworks
 
-### 2. Prerequisites
+### 2. Prebuild
+
+After adding the plugin, generate the native project:
+
+```bash
+npx expo prebuild
+```
+
+### 3. Prerequisites
 
 - The user must have the **Meta AI** app installed and paired with their glasses
 - A physical iOS device is required (no simulator support)
-- Run `npx expo prebuild` after adding the plugin
 
 ## Quick Start
 
 ```tsx
+import { View, Button, Text } from "react-native";
 import { useMetaWearables, EMWDATStreamView } from "expo-meta-wearables-dat";
 
 export default function App() {
   const {
     isConfigured,
     registrationState,
-    permissionStatus,
     devices,
     streamState,
     startRegistration,
-    requestPermission,
     startStream,
     stopStream,
     capturePhoto,
@@ -139,12 +140,21 @@ export default function App() {
   });
 
   return (
-    <>
+    <View style={{ flex: 1, padding: 20, paddingTop: 60, gap: 10 }}>
+      <Text>Configured: {String(isConfigured)}</Text>
+      <Text>Registration: {registrationState}</Text>
+      <Text>Devices: {devices.length}</Text>
+      <Text>Stream: {streamState}</Text>
+
+      <Button title="Register" onPress={() => startRegistration()} />
+      <Button title="Start Stream" onPress={() => startStream()} />
+      <Button title="Stop Stream" onPress={() => stopStream()} />
+      <Button title="Capture Photo" onPress={() => capturePhoto("jpeg")} />
+
       {streamState === "streaming" && (
-        <EMWDATStreamView isActive={true} resizeMode="contain" style={{ flex: 1 }} />
+        <EMWDATStreamView isActive resizeMode="contain" style={{ flex: 1 }} />
       )}
-      {/* Add your UI controls here */}
-    </>
+    </View>
   );
 }
 ```

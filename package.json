@@ -9,7 +9,10 @@
       "types": "./build/index.d.ts",
       "react-native": "./build/index.js",
       "default": "./build/index.js"
-    }
+    },
+    "./app.plugin.js": "./app.plugin.js",
+    "./app.plugin": "./app.plugin.js",
+    "./expo-module.config.json": "./expo-module.config.json"
   },
   "sideEffects": false,
   "files": [
@@ -98,7 +101,7 @@
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=18"
   },
   "peerDependencies": {
     "expo": ">=52",

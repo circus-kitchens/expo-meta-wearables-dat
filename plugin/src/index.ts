@@ -80,6 +80,16 @@ done
     project.addBuildPhase([], "PBXShellScriptBuildPhase", "Embed MWDAT Frameworks", target, {
       shellPath: "/bin/sh",
       shellScript,
+      inputPaths: [
+        '"${BUILT_PRODUCTS_DIR}/MWDATCamera.framework"',
+        '"${BUILT_PRODUCTS_DIR}/MWDATCore.framework"',
+        '"${BUILT_PRODUCTS_DIR}/MWDATMockDevice.framework"',
+      ],
+      outputPaths: [
+        '"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/MWDATCamera.framework"',
+        '"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/MWDATCore.framework"',
+        '"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/MWDATMockDevice.framework"',
+      ],
     });
 
     return config;

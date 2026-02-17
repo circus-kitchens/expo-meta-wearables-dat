@@ -209,7 +209,6 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
 
   const configure = useCallback(async () => {
     if (isConfiguredRef.current) {
-      console.warn("[useMetaWearables] SDK already configured");
       return;
     }
 

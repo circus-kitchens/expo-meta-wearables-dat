@@ -110,9 +110,7 @@ describe("configure", () => {
     expect(result.current.isConfigured).toBe(false);
   });
 
-  it("warns and returns early if already configured", async () => {
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation();
-
+  it("returns early without error if already configured", async () => {
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
 
     await act(async () => {
@@ -123,8 +121,6 @@ describe("configure", () => {
     });
 
     expect(m.configure).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalledWith("[useMetaWearables] SDK already configured");
-    warnSpy.mockRestore();
   });
 
   it("sets logLevel before configuring", async () => {
