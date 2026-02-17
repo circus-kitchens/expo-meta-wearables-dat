@@ -37,6 +37,7 @@ public class EMWDATModule: Module {
         OnDestroy {
             self.logger.info("Module", "Module destroyed")
             Task { @MainActor in
+                StreamSessionManager.shared.destroy()
                 WearablesManager.shared.cleanup()
             }
         }
