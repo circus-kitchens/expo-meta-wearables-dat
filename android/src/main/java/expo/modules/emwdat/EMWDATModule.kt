@@ -20,7 +20,9 @@ class EMWDATModule : Module() {
             "onVideoFrame",
             "onPhotoCaptured",
             "onStreamError",
-            "onPermissionStatusChange"
+            "onPermissionStatusChange",
+            "onCompatibilityChange",
+            "onDeviceSessionStateChange"
         )
 
         // MARK: - Logging

@@ -66,6 +66,9 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@25.2.3)
       jiti:
         specifier: ^2.6.1
         version: 2.6.1
