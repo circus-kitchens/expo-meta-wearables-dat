@@ -16,7 +16,7 @@ import {
 import { useCallback, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Btn, Row, Section } from "./ui";
+import { Btn, Section } from "./ui";
 
 interface MockDeviceInfo {
   id: string;
@@ -142,65 +142,36 @@ export function MockDevicePanel() {
             </Pressable>
           </View>
 
-          <View style={styles.statusRow}>
-            <StatusChip
-              label="Power"
+          <View style={styles.toggleRow}>
+            <ToggleChip
+              label={device.powered ? "ON" : "OFF"}
               active={device.powered}
-              activeLabel="ON"
-              inactiveLabel="OFF"
-            />
-            <StatusChip
-              label="Wear"
-              active={device.donned}
-              activeLabel="DON"
-              inactiveLabel="DOFF"
-            />
-            <StatusChip
-              label="Hinge"
-              active={device.unfolded}
-              activeLabel="OPEN"
-              inactiveLabel="FOLD"
-            />
-          </View>
-
-          <View style={styles.statusRow}>
-            <StatusChip
-              label="Feed"
-              active={device.cameraFeedSet}
-              activeLabel="SET"
-              inactiveLabel="NONE"
-            />
-            <StatusChip
-              label="Photo"
-              active={device.capturedImageSet}
-              activeLabel="SET"
-              inactiveLabel="NONE"
-            />
-          </View>
-
-          <Row>
-            <Btn
-              label={device.powered ? "Off" : "On"}
-              variant={device.powered ? "destructive" : "success"}
               onPress={safe(() => handlePowerToggle(device))}
             />
-            <Btn
-              label={device.donned ? "Doff" : "Don"}
+            <ToggleChip
+              label={device.donned ? "DON" : "DOFF"}
+              active={device.donned}
               onPress={safe(() => handleDonToggle(device))}
             />
-            <Btn
-              label={device.unfolded ? "Fold" : "Unfold"}
+            <ToggleChip
+              label={device.unfolded ? "OPEN" : "FOLD"}
+              active={device.unfolded}
               onPress={safe(() => handleFoldToggle(device))}
             />
-          </Row>
+          </View>
 
-          <Row>
-            <Btn label="Set Camera Feed" onPress={safe(() => handleSetCameraFeed(device.id))} />
-            <Btn
-              label="Set Captured Image"
+          <View style={styles.toggleRow}>
+            <ToggleChip
+              label={device.cameraFeedSet ? "Feed SET" : "Set Feed"}
+              active={device.cameraFeedSet}
+              onPress={safe(() => handleSetCameraFeed(device.id))}
+            />
+            <ToggleChip
+              label={device.capturedImageSet ? "Photo SET" : "Set Photo"}
+              active={device.capturedImageSet}
               onPress={safe(() => handleSetCapturedImage(device.id))}
             />
-          </Row>
+          </View>
         </View>
       ))}
 
@@ -211,24 +182,30 @@ export function MockDevicePanel() {
   );
 }
 
-function StatusChip({
+function ToggleChip({
   label,
   active,
-  activeLabel,
-  inactiveLabel,
+  onPress,
 }: {
   label: string;
   active: boolean;
-  activeLabel: string;
-  inactiveLabel: string;
+  onPress: () => void;
 }) {
   return (
-    <View style={[styles.chip, active ? styles.chipActive : styles.chipInactive]}>
-      <Text style={styles.chipLabel}>{label}</Text>
-      <Text style={[styles.chipValue, active ? styles.chipValueActive : styles.chipValueInactive]}>
-        {active ? activeLabel : inactiveLabel}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.toggle,
+        active ? styles.toggleActive : styles.toggleInactive,
+        pressed && styles.togglePressed,
+      ]}
+    >
+      <Text
+        style={[styles.toggleText, active ? styles.toggleTextActive : styles.toggleTextInactive]}
+      >
+        {label}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -263,37 +240,37 @@ const styles = StyleSheet.create({
     color: "#334155",
     fontFamily: "Courier",
   },
-  statusRow: {
+  toggleRow: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  chip: {
+  toggle: {
     flex: 1,
     borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingVertical: 8,
     alignItems: "center",
+    borderWidth: 1,
   },
-  chipActive: {
+  toggleActive: {
     backgroundColor: "#dcfce7",
+    borderColor: "#86efac",
   },
-  chipInactive: {
+  toggleInactive: {
     backgroundColor: "#fee2e2",
+    borderColor: "#fecaca",
   },
-  chipLabel: {
-    fontSize: 10,
-    color: "#64748b",
-    fontWeight: "500",
+  togglePressed: {
+    opacity: 0.7,
   },
-  chipValue: {
-    fontSize: 11,
+  toggleText: {
+    fontSize: 12,
     fontWeight: "700",
   },
-  chipValueActive: {
+  toggleTextActive: {
     color: "#16a34a",
   },
-  chipValueInactive: {
+  toggleTextInactive: {
     color: "#dc2626",
   },
   hint: {

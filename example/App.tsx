@@ -193,11 +193,6 @@ export default function App() {
             )}
           </Section>
 
-          {/* Log Level */}
-          <Section title="Log Level">
-            <OptionRow options={LOG_LEVELS} selected={logLevel} onSelect={handleLogLevelChange} />
-          </Section>
-
           {/* Registration */}
           <Section title="Registration">
             <Row>
@@ -259,6 +254,9 @@ export default function App() {
             {devices.length === 0 && <Text style={styles.hint}>No devices found.</Text>}
           </Section>
 
+          {/* Mock Devices (DEBUG only) */}
+          {__DEV__ && <MockDevicePanel />}
+
           {/* Streaming */}
           <StreamPreview
             streamState={streamState}
@@ -289,8 +287,10 @@ export default function App() {
           {/* Last Photo */}
           {lastPhoto && <PhotoPreview photo={lastPhoto} onDelete={deletePhoto} />}
 
-          {/* Mock Devices (DEBUG only) */}
-          {__DEV__ && <MockDevicePanel />}
+          {/* Log Level */}
+          <Section title="Log Level">
+            <OptionRow options={LOG_LEVELS} selected={logLevel} onSelect={handleLogLevelChange} />
+          </Section>
 
           {/* Event Log */}
           <EventLog eventLog={eventLog} onClear={() => setEventLog([])} />
