@@ -27,6 +27,7 @@ Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart gl
 - Live camera video streaming with native view
 - Photo capture (JPEG / HEIC)
 - `useMetaWearables` React hook with full state management
+- Mock device simulation for testing (debug builds)
 - Expo config plugin (auto-configures Info.plist, URL schemes, deployment target)
 
 ## Compatibility
@@ -43,7 +44,8 @@ Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart gl
 ## Supported Devices
 
 - Ray-Ban Meta (verified)
-- Oakley Meta HSTN / Vanguard (should work, untested)
+- Meta Ray-Ban Display (untested)
+- Oakley Meta HSTN / Vanguard (untested)
 
 ## Installation
 
@@ -206,6 +208,7 @@ These can be imported directly for lower-level control:
 
 ```ts
 import {
+  EMWDATModule,
   configure,
   setLogLevel,
   startRegistration,
@@ -227,6 +230,7 @@ import {
 
 | Function                    | Signature                                                  |
 | --------------------------- | ---------------------------------------------------------- |
+| `EMWDATModule`              | Raw native module instance (for advanced use)              |
 | `configure`                 | `() => Promise<void>`                                      |
 | `setLogLevel`               | `(level: LogLevel) => void`                                |
 | `getRegistrationState`      | `() => RegistrationState` (sync)                           |
@@ -280,14 +284,57 @@ Key types exported from the package:
 - `Permission` — `"camera"`
 - `PermissionStatus` — `"granted"` \| `"denied"`
 - `Device` — `{ identifier, name, linkState, deviceType, compatibility }`
-- `StreamSessionConfig` — `{ videoCodec, resolution, frameRate }`
+- `StreamSessionConfig` — `{ videoCodec, resolution, frameRate, deviceId? }`
 - `StreamSessionState` — `"stopped"` \| `"waitingForDevice"` \| `"starting"` \| `"streaming"` \| `"paused"` \| `"stopping"`
 - `StreamSessionError` — Discriminated union: `internalError` \| `deviceNotFound` \| `deviceNotConnected` \| `timeout` \| `videoStreamingError` \| `audioStreamingError` \| `permissionDenied` \| `hingesClosed`
 - `PhotoData` — `{ filePath, format, timestamp, width?, height?, base64? }`
 - `PhotoCaptureFormat` — `"jpeg"` \| `"heic"`
+- `LinkState` — `"connected"` \| `"disconnected"` \| `"connecting"`
+- `Compatibility` — `"compatible"` \| `"undefined"` \| `"deviceUpdateRequired"` \| `"sdkUpdateRequired"`
+- `DeviceType` — `"rayBanMeta"` \| `"oakleyMetaHSTN"` \| `"oakleyMetaVanguard"` \| `"metaRayBanDisplay"` \| `"unknown"`
+- `SessionState` — `"stopped"` \| `"waitingForDevice"` \| `"running"` \| `"paused"` \| `"unknown"`
+- `StreamingResolution` — `"high"` \| `"medium"` \| `"low"`
+- `VideoCodec` — `"raw"`
+- `VideoFrameMetadata` — `{ timestamp, width, height }`
+- `StreamViewResizeMode` — `"contain"` \| `"cover"` \| `"stretch"`
 - `EMWDATPluginProps` — Config plugin options
+- Error code types: `WearablesErrorCode`, `RegistrationErrorCode`, `UnregistrationErrorCode`, `PermissionErrorCode`, `DecoderError`
 
 See [`src/EMWDAT.types.ts`](./src/EMWDAT.types.ts) for the full list.
+
+### Mock Device API (Testing)
+
+Functions for simulating Meta Wearables devices during development using the SDK's `MWDATMockDevice` framework. Only available in debug builds on iOS.
+
+```ts
+import {
+  createMockDevice,
+  removeMockDevice,
+  getMockDevices,
+  mockDevicePowerOn,
+  mockDevicePowerOff,
+  mockDeviceDon,
+  mockDeviceDoff,
+  mockDeviceFold,
+  mockDeviceUnfold,
+  mockDeviceSetCameraFeed,
+  mockDeviceSetCapturedImage,
+} from "expo-meta-wearables-dat";
+```
+
+| Function                     | Signature                                        | Description                            |
+| ---------------------------- | ------------------------------------------------ | -------------------------------------- |
+| `createMockDevice`           | `() => Promise<string>`                          | Create a mock Ray-Ban Meta, returns ID |
+| `removeMockDevice`           | `(id: string) => Promise<void>`                  | Remove a mock device                   |
+| `getMockDevices`             | `() => Promise<string[]>`                        | List active mock device IDs            |
+| `mockDevicePowerOn`          | `(id: string) => Promise<void>`                  | Power on                               |
+| `mockDevicePowerOff`         | `(id: string) => Promise<void>`                  | Power off                              |
+| `mockDeviceDon`              | `(id: string) => Promise<void>`                  | Simulate putting glasses on            |
+| `mockDeviceDoff`             | `(id: string) => Promise<void>`                  | Simulate taking glasses off            |
+| `mockDeviceFold`             | `(id: string) => Promise<void>`                  | Fold hinges                            |
+| `mockDeviceUnfold`           | `(id: string) => Promise<void>`                  | Unfold hinges                          |
+| `mockDeviceSetCameraFeed`    | `(id: string, fileUrl: string) => Promise<void>` | Set camera feed video from local file  |
+| `mockDeviceSetCapturedImage` | `(id: string, fileUrl: string) => Promise<void>` | Set captured image from local file     |
 
 ## Example App
 
