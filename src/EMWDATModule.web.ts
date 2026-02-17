@@ -54,6 +54,39 @@ class EMWDATWebModule extends NativeModule<EMWDATModuleEvents> {
   capturePhoto(): Promise<void> {
     unsupported();
   }
+  createMockDevice(): Promise<string> {
+    unsupported();
+  }
+  removeMockDevice(): Promise<void> {
+    unsupported();
+  }
+  getMockDevices(): Promise<string[]> {
+    unsupported();
+  }
+  mockDevicePowerOn(): Promise<void> {
+    unsupported();
+  }
+  mockDevicePowerOff(): Promise<void> {
+    unsupported();
+  }
+  mockDeviceDon(): Promise<void> {
+    unsupported();
+  }
+  mockDeviceDoff(): Promise<void> {
+    unsupported();
+  }
+  mockDeviceFold(): Promise<void> {
+    unsupported();
+  }
+  mockDeviceUnfold(): Promise<void> {
+    unsupported();
+  }
+  mockDeviceSetCameraFeed(): Promise<void> {
+    unsupported();
+  }
+  mockDeviceSetCapturedImage(): Promise<void> {
+    unsupported();
+  }
 }
 
 /** Web module — all methods throw "not supported". */
@@ -110,5 +143,38 @@ export async function stopStream(): Promise<void> {
   unsupported();
 }
 export async function capturePhoto(): Promise<void> {
+  unsupported();
+}
+export async function createMockDevice(): Promise<never> {
+  unsupported();
+}
+export async function removeMockDevice(): Promise<void> {
+  unsupported();
+}
+export async function getMockDevices(): Promise<never> {
+  unsupported();
+}
+export async function mockDevicePowerOn(): Promise<void> {
+  unsupported();
+}
+export async function mockDevicePowerOff(): Promise<void> {
+  unsupported();
+}
+export async function mockDeviceDon(): Promise<void> {
+  unsupported();
+}
+export async function mockDeviceDoff(): Promise<void> {
+  unsupported();
+}
+export async function mockDeviceFold(): Promise<void> {
+  unsupported();
+}
+export async function mockDeviceUnfold(): Promise<void> {
+  unsupported();
+}
+export async function mockDeviceSetCameraFeed(): Promise<void> {
+  unsupported();
+}
+export async function mockDeviceSetCapturedImage(): Promise<void> {
   unsupported();
 }

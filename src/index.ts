@@ -24,6 +24,17 @@ export {
   startStream,
   stopStream,
   capturePhoto,
+  createMockDevice,
+  removeMockDevice,
+  getMockDevices,
+  mockDevicePowerOn,
+  mockDevicePowerOff,
+  mockDeviceDon,
+  mockDeviceDoff,
+  mockDeviceFold,
+  mockDeviceUnfold,
+  mockDeviceSetCameraFeed,
+  mockDeviceSetCapturedImage,
 } from "./EMWDATModule";
 
 // Types

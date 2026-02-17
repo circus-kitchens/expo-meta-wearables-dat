@@ -15,6 +15,7 @@ import { DeviceCard } from "./components/device-card";
 import { EventLog } from "./components/event-log";
 import { Footer } from "./components/footer";
 import { Header } from "./components/header";
+import { MockDevicePanel } from "./components/mock-device-panel";
 import { PhotoPreview } from "./components/photo-preview";
 import { StreamPreview } from "./components/stream-preview";
 import { Btn, OptionRow, Row, Section, StatusRow } from "./components/ui";
@@ -287,6 +288,9 @@ export default function App() {
 
           {/* Last Photo */}
           {lastPhoto && <PhotoPreview photo={lastPhoto} onDelete={deletePhoto} />}
+
+          {/* Mock Devices (DEBUG only) */}
+          {__DEV__ && <MockDevicePanel />}
 
           {/* Event Log */}
           <EventLog eventLog={eventLog} onClear={() => setEventLog([])} />

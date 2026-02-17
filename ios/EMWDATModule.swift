@@ -228,6 +228,130 @@ public class EMWDATModule: Module {
             }
         }
 
+        // MARK: - Mock Device (DEBUG only)
+
+        #if DEBUG
+        AsyncFunction("createMockDevice") { (promise: Promise) in
+            Task { @MainActor in
+                let id = MockDeviceManager.shared.createMockDevice()
+                promise.resolve(id)
+            }
+        }
+
+        AsyncFunction("removeMockDevice") { (id: String, promise: Promise) in
+            Task { @MainActor in
+                do {
+                    try MockDeviceManager.shared.removeMockDevice(id: id)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("getMockDevices") { (promise: Promise) in
+            Task { @MainActor in
+                promise.resolve(MockDeviceManager.shared.getMockDevices())
+            }
+        }
+
+        AsyncFunction("mockDevicePowerOn") { (id: String, promise: Promise) in
+            Task { @MainActor in
+                do {
+                    try MockDeviceManager.shared.powerOn(id: id)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("mockDevicePowerOff") { (id: String, promise: Promise) in
+            Task { @MainActor in
+                do {
+                    try MockDeviceManager.shared.powerOff(id: id)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("mockDeviceDon") { (id: String, promise: Promise) in
+            Task { @MainActor in
+                do {
+                    try MockDeviceManager.shared.don(id: id)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("mockDeviceDoff") { (id: String, promise: Promise) in
+            Task { @MainActor in
+                do {
+                    try MockDeviceManager.shared.doff(id: id)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("mockDeviceFold") { (id: String, promise: Promise) in
+            Task { @MainActor in
+                do {
+                    try MockDeviceManager.shared.fold(id: id)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("mockDeviceUnfold") { (id: String, promise: Promise) in
+            Task { @MainActor in
+                do {
+                    try MockDeviceManager.shared.unfold(id: id)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("mockDeviceSetCameraFeed") { (id: String, fileUrl: String, promise: Promise) in
+            guard let url = URL(string: fileUrl) else {
+                promise.reject("MOCK_DEVICE_ERROR", "Invalid file URL: \(fileUrl)")
+                return
+            }
+            Task { @MainActor in
+                do {
+                    try await MockDeviceManager.shared.setCameraFeed(id: id, fileURL: url)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("mockDeviceSetCapturedImage") { (id: String, fileUrl: String, promise: Promise) in
+            guard let url = URL(string: fileUrl) else {
+                promise.reject("MOCK_DEVICE_ERROR", "Invalid file URL: \(fileUrl)")
+                return
+            }
+            Task { @MainActor in
+                do {
+                    try await MockDeviceManager.shared.setCapturedImage(id: id, fileURL: url)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+        #endif
+
         // MARK: - View (EMWDATStreamView created in step 6)
 
         View(EMWDATStreamView.self) {
