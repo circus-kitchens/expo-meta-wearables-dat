@@ -1,3 +1,10 @@
+## [0.0.9](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.8...v0.0.9) (2026-02-17)
+
+### Bug Fixes
+
+- resolve config plugin export and improve setup docs ([8a57599](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/8a5759946e5d3fbae63c26d22d4a260e9560fa0e))
+- use PAT for semantic-release ([23c3351](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/23c33514cead2072c3a08d538590665a3e06e38b))
+
 ## [0.0.8](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.7...v0.0.8) (2026-02-17)
 
 ### Bug Fixes
