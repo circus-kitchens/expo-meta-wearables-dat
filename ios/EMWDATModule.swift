@@ -199,7 +199,8 @@ public class EMWDATModule: Module {
             Task { @MainActor in
                 do {
                     let sessionConfig = StreamSessionManager.parseConfig(from: config)
-                    try await StreamSessionManager.shared.startStream(config: sessionConfig)
+                    let deviceId = config["deviceId"] as? String
+                    try await StreamSessionManager.shared.startStream(config: sessionConfig, deviceId: deviceId)
                     promise.resolve(nil)
                 } catch {
                     promise.reject("STREAM_START_FAILED", error.localizedDescription)

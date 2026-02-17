@@ -5,6 +5,7 @@ import type {
   PhotoData,
   PhotoCaptureFormat,
   StreamingResolution,
+  DeviceIdentifier,
   LogLevel,
 } from "expo-meta-wearables-dat";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -39,6 +40,7 @@ export default function App() {
   const [resolution, setResolution] = useState<StreamingResolution>("low");
   const [frameRate, setFrameRate] = useState<number>(15);
   const [photoFormat, setPhotoFormat] = useState<PhotoCaptureFormat>("jpeg");
+  const [selectedDeviceId, setSelectedDeviceId] = useState<DeviceIdentifier | null>(null);
   const [logLevel, setLogLevelState] = useState<LogLevel>("debug");
   const [eventLog, setEventLog] = useState<LogEntry[]>([]);
 
@@ -268,6 +270,9 @@ export default function App() {
             isConfigured={isConfigured}
             registrationState={registrationState}
             permissionStatus={permissionStatus}
+            devices={devices}
+            selectedDeviceId={selectedDeviceId}
+            onDeviceSelect={setSelectedDeviceId}
             onResolutionChange={setResolution}
             onFrameRateChange={setFrameRate}
             onPhotoFormatChange={setPhotoFormat}
@@ -278,7 +283,12 @@ export default function App() {
                   throw new Error("Camera permission is required to stream.");
                 }
               }
-              await startStream({ resolution, frameRate, videoCodec: "raw" });
+              await startStream({
+                resolution,
+                frameRate,
+                videoCodec: "raw",
+                ...(selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
+              });
             })}
             onStopStream={safe(stopStream)}
             onCapturePhoto={safe(() => capturePhoto(photoFormat))}

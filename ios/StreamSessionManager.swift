@@ -51,7 +51,11 @@ public final class StreamSessionManager {
     // MARK: - Stream Control
 
     /// Start a streaming session with the given configuration
-    public func startStream(config: StreamSessionConfig) async throws {
+    /// - Parameters:
+    ///   - config: Stream session configuration (resolution, codec, frame rate)
+    ///   - deviceId: Optional device identifier. When provided, targets that specific device
+    ///               via `SpecificDeviceSelector`. When nil, uses `AutoDeviceSelector`.
+    public func startStream(config: StreamSessionConfig, deviceId: String? = nil) async throws {
         guard streamSession == nil else {
             logger.warn("StreamSession", "Stream already active")
             throw StreamSessionManagerError.sessionAlreadyActive
@@ -63,8 +67,14 @@ public final class StreamSessionManager {
             "codec": String(describing: config.videoCodec)
         ])
 
-        // Create auto device selector
-        let deviceSelector = AutoDeviceSelector(wearables: Wearables.shared)
+        // Create device selector — specific device if provided, otherwise auto-select
+        let deviceSelector: any DeviceSelector
+        if let deviceId = deviceId {
+            deviceSelector = SpecificDeviceSelector(device: deviceId)
+            logger.info("StreamSession", "Using specific device", context: ["deviceId": deviceId])
+        } else {
+            deviceSelector = AutoDeviceSelector(wearables: Wearables.shared)
+        }
 
         // Create stream session
         let session = StreamSession(streamSessionConfig: config, deviceSelector: deviceSelector)
