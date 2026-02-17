@@ -1,3 +1,9 @@
+## [0.0.8](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.7...v0.0.8) (2026-02-17)
+
+### Bug Fixes
+
+- mock device support ([#3](https://github.com/circus-kitchens/expo-meta-wearables-dat/issues/3)) ([fb4ba58](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/fb4ba58847fab04983ccf02702801fd10a1d1f50))
+
 ## [0.0.7](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.6...v0.0.7) (2026-02-13)
 
 ### Bug Fixes
