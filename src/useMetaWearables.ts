@@ -159,10 +159,13 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
         setLastError(e);
         callbacksRef.current.onStreamError?.(e);
 
-        // Auto-stop stream on error, then reset state
-        nativeStopStream()
-          .catch(() => {})
-          .finally(() => syncStreamState("stopped"));
+        // Auto-stop only if actively streaming — ignore errors during teardown
+        const st = streamStateRef.current;
+        if (st !== "stopped" && st !== "stopping") {
+          nativeStopStream()
+            .catch(() => {})
+            .finally(() => syncStreamState("stopped"));
+        }
       }),
 
       addListener("onPermissionStatusChange", (e) => {
@@ -308,21 +311,36 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
     return deviceList;
   }, []);
 
-  const startStream = useCallback(async (config?: Partial<StreamSessionConfig>) => {
-    if (!isConfiguredRef.current) {
-      throw new Error("SDK not configured. Call configure() first.");
-    }
-    if (registrationStateRef.current !== "registered") {
-      throw new Error("Must be registered before streaming.");
-    }
-    if (permissionStatusRef.current !== "granted") {
-      throw new Error("Camera permission required for streaming.");
-    }
-    if (streamStateRef.current === "streaming" || streamStateRef.current === "starting") {
-      throw new Error("Stream already active.");
-    }
-    await nativeStartStream(config);
-  }, []);
+  const startStream = useCallback(
+    async (config?: Partial<StreamSessionConfig>) => {
+      if (!isConfiguredRef.current) {
+        throw new Error("SDK not configured. Call configure() first.");
+      }
+      if (registrationStateRef.current !== "registered") {
+        throw new Error("Must be registered before streaming.");
+      }
+      if (streamStateRef.current === "streaming" || streamStateRef.current === "starting") {
+        throw new Error("Stream already active.");
+      }
+
+      // Always verify permission with native SDK before starting — DAT permissions
+      // are per-session and may be revoked after stopping a stream (matches Meta's
+      // CameraAccess sample app pattern: check → request → start).
+      const status = await nativeCheckPermissionStatus("camera");
+      if (status !== "granted") {
+        const requested = await nativeRequestPermission("camera");
+        syncPermissionStatus(requested as PermissionStatus);
+        if (requested !== "granted") {
+          throw new Error("Camera permission required for streaming.");
+        }
+      } else {
+        syncPermissionStatus("granted");
+      }
+
+      await nativeStartStream(config);
+    },
+    [syncPermissionStatus]
+  );
 
   const stopStream = useCallback(async () => {
     if (streamStateRef.current === "stopped") {

@@ -5,6 +5,7 @@ import type {
   PhotoData,
   PhotoCaptureFormat,
   StreamingResolution,
+  DeviceIdentifier,
   LogLevel,
 } from "expo-meta-wearables-dat";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -15,6 +16,7 @@ import { DeviceCard } from "./components/device-card";
 import { EventLog } from "./components/event-log";
 import { Footer } from "./components/footer";
 import { Header } from "./components/header";
+import { MockDevicePanel } from "./components/mock-device-panel";
 import { PhotoPreview } from "./components/photo-preview";
 import { StreamPreview } from "./components/stream-preview";
 import { Btn, OptionRow, Row, Section, StatusRow } from "./components/ui";
@@ -38,6 +40,7 @@ export default function App() {
   const [resolution, setResolution] = useState<StreamingResolution>("low");
   const [frameRate, setFrameRate] = useState<number>(15);
   const [photoFormat, setPhotoFormat] = useState<PhotoCaptureFormat>("jpeg");
+  const [selectedDeviceId, setSelectedDeviceId] = useState<DeviceIdentifier | null>(null);
   const [logLevel, setLogLevelState] = useState<LogLevel>("debug");
   const [eventLog, setEventLog] = useState<LogEntry[]>([]);
 
@@ -192,11 +195,6 @@ export default function App() {
             )}
           </Section>
 
-          {/* Log Level */}
-          <Section title="Log Level">
-            <OptionRow options={LOG_LEVELS} selected={logLevel} onSelect={handleLogLevelChange} />
-          </Section>
-
           {/* Registration */}
           <Section title="Registration">
             <Row>
@@ -258,6 +256,9 @@ export default function App() {
             {devices.length === 0 && <Text style={styles.hint}>No devices found.</Text>}
           </Section>
 
+          {/* Mock Devices (DEBUG only) */}
+          {__DEV__ && <MockDevicePanel />}
+
           {/* Streaming */}
           <StreamPreview
             streamState={streamState}
@@ -269,6 +270,9 @@ export default function App() {
             isConfigured={isConfigured}
             registrationState={registrationState}
             permissionStatus={permissionStatus}
+            devices={devices}
+            selectedDeviceId={selectedDeviceId}
+            onDeviceSelect={setSelectedDeviceId}
             onResolutionChange={setResolution}
             onFrameRateChange={setFrameRate}
             onPhotoFormatChange={setPhotoFormat}
@@ -279,7 +283,12 @@ export default function App() {
                   throw new Error("Camera permission is required to stream.");
                 }
               }
-              await startStream({ resolution, frameRate, videoCodec: "raw" });
+              await startStream({
+                resolution,
+                frameRate,
+                videoCodec: "raw",
+                ...(selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
+              });
             })}
             onStopStream={safe(stopStream)}
             onCapturePhoto={safe(() => capturePhoto(photoFormat))}
@@ -287,6 +296,11 @@ export default function App() {
 
           {/* Last Photo */}
           {lastPhoto && <PhotoPreview photo={lastPhoto} onDelete={deletePhoto} />}
+
+          {/* Log Level */}
+          <Section title="Log Level">
+            <OptionRow options={LOG_LEVELS} selected={logLevel} onSelect={handleLogLevelChange} />
+          </Section>
 
           {/* Event Log */}
           <EventLog eventLog={eventLog} onClear={() => setEventLog([])} />

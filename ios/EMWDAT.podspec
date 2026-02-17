@@ -28,7 +28,7 @@ Pod::Spec.new do |s|
   spm_dependency(s,
     url: 'https://github.com/facebook/meta-wearables-dat-ios',
     requirement: { kind: 'upToNextMinorVersion', minimumVersion: '0.4.0' },
-    products: ['MWDATCore', 'MWDATCamera']
+    products: ['MWDATCore', 'MWDATCamera', 'MWDATMockDevice']
   )
 
   # Swift/Objective-C settings

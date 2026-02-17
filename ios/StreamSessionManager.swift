@@ -23,6 +23,7 @@ public final class StreamSessionManager {
 
     private(set) var currentState: StreamSessionState = .stopped
     private(set) var currentConfig: StreamSessionConfig?
+    private var currentDeviceId: String?
 
     // MARK: - Callbacks
 
@@ -50,9 +51,19 @@ public final class StreamSessionManager {
 
     // MARK: - Stream Control
 
-    /// Start a streaming session with the given configuration
-    public func startStream(config: StreamSessionConfig) async throws {
-        guard streamSession == nil else {
+    /// Start a streaming session with the given configuration.
+    ///
+    /// The SDK's `StreamSession` is designed to be reused across start/stop cycles
+    /// (matching Meta's CameraAccess sample app pattern). A new session is only
+    /// created when none exists or when the config/deviceId changes.
+    ///
+    /// - Parameters:
+    ///   - config: Stream session configuration (resolution, codec, frame rate)
+    ///   - deviceId: Optional device identifier. When provided, targets that specific device
+    ///               via `SpecificDeviceSelector`. When nil, uses `AutoDeviceSelector`.
+    public func startStream(config: StreamSessionConfig, deviceId: String? = nil) async throws {
+        // If session exists and is still active (not stopped), reject
+        if streamSession != nil && currentState != .stopped {
             logger.warn("StreamSession", "Stream already active")
             throw StreamSessionManagerError.sessionAlreadyActive
         }
@@ -63,13 +74,36 @@ public final class StreamSessionManager {
             "codec": String(describing: config.videoCodec)
         ])
 
-        // Create auto device selector
-        let deviceSelector = AutoDeviceSelector(wearables: Wearables.shared)
+        // Reuse existing session if config and deviceId match
+        let configChanged = !configsMatch(currentConfig, config) || currentDeviceId != deviceId
+
+        if let existingSession = streamSession, !configChanged {
+            logger.info("StreamSession", "Reusing existing session")
+            await existingSession.start()
+            logger.info("StreamSession", "Stream session restarted")
+            return
+        }
+
+        // Config/device changed or no session — tear down old and create new
+        if streamSession != nil {
+            logger.info("StreamSession", "Config changed, recreating session")
+            destroySession()
+        }
+
+        // Create device selector — specific device if provided, otherwise auto-select
+        let deviceSelector: any DeviceSelector
+        if let deviceId = deviceId {
+            deviceSelector = SpecificDeviceSelector(device: deviceId)
+            logger.info("StreamSession", "Using specific device", context: ["deviceId": deviceId])
+        } else {
+            deviceSelector = AutoDeviceSelector(wearables: Wearables.shared)
+        }
 
         // Create stream session
         let session = StreamSession(streamSessionConfig: config, deviceSelector: deviceSelector)
         self.streamSession = session
         self.currentConfig = config
+        self.currentDeviceId = deviceId
 
         // Subscribe to state changes
         stateToken = session.statePublisher.listen { [weak self] state in
@@ -104,7 +138,8 @@ public final class StreamSessionManager {
         logger.info("StreamSession", "Stream session started")
     }
 
-    /// Stop the current streaming session
+    /// Stop the current streaming session.
+    /// The session is kept alive for reuse — call `destroySession()` for full cleanup.
     public func stopStream() async {
         guard let session = streamSession else {
             logger.warn("StreamSession", "No active stream to stop")
@@ -113,7 +148,8 @@ public final class StreamSessionManager {
 
         logger.info("StreamSession", "Stopping stream")
         await session.stop()
-        cleanup()
+        // Don't destroy the session — it will be reused on next startStream()
+        logger.info("StreamSession", "Stream stopped (session kept for reuse)")
     }
 
     /// Capture a photo during streaming
@@ -167,8 +203,16 @@ public final class StreamSessionManager {
 
     private func handleError(_ error: StreamSessionError) {
         logger.error("StreamSession", "Stream error", context: [
-            "error": String(describing: error)
+            "error": String(describing: error),
+            "state": String(describing: currentState)
         ])
+
+        // Ignore errors during teardown — they arrive after stop() and would
+        // trigger JS auto-stop logic, killing the next session if already restarted.
+        guard currentState != .stopped && currentState != .stopping else {
+            logger.debug("StreamSession", "Ignoring error during teardown")
+            return
+        }
 
         emitEvent("onStreamError", mapStreamErrorToDict(error))
     }
@@ -206,15 +250,23 @@ public final class StreamSessionManager {
 
     // MARK: - Cleanup
 
-    private func cleanup() {
+    /// Full teardown — destroys the session and all listeners.
+    /// Used when config changes or module is destroyed.
+    private func destroySession() {
         stateToken = nil
         frameToken = nil
         errorToken = nil
         photoToken = nil
         streamSession = nil
         currentConfig = nil
+        currentDeviceId = nil
         currentState = .stopped
-        logger.debug("StreamSession", "Cleaned up resources")
+        logger.debug("StreamSession", "Session destroyed")
+    }
+
+    /// Public teardown for module lifecycle (OnDestroy).
+    public func destroy() {
+        destroySession()
     }
 
     // MARK: - Event Emission
@@ -267,6 +319,14 @@ public final class StreamSessionManager {
         case .heic: return "heic"
         @unknown default: return "jpeg"
         }
+    }
+
+    /// Compare two StreamSessionConfig values (SDK type doesn't conform to Equatable)
+    private func configsMatch(_ a: StreamSessionConfig?, _ b: StreamSessionConfig) -> Bool {
+        guard let a = a else { return false }
+        return a.resolution == b.resolution
+            && a.frameRate == b.frameRate
+            && a.videoCodec == b.videoCodec
     }
 }
 

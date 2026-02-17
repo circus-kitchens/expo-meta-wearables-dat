@@ -73,6 +73,8 @@ export interface StreamSessionConfig {
   videoCodec: VideoCodec;
   resolution: StreamingResolution;
   frameRate: number;
+  /** Target a specific device by identifier. When omitted, auto-selects a connected device. */
+  deviceId?: DeviceIdentifier;
 }
 
 /**

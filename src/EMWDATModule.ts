@@ -33,6 +33,17 @@ declare class EMWDATNativeModule extends NativeModule<EMWDATModuleEvents> {
   startStream(config: Partial<StreamSessionConfig>): Promise<void>;
   stopStream(): Promise<void>;
   capturePhoto(format: string): Promise<void>;
+  createMockDevice(): Promise<string>;
+  removeMockDevice(id: string): Promise<void>;
+  getMockDevices(): Promise<string[]>;
+  mockDevicePowerOn(id: string): Promise<void>;
+  mockDevicePowerOff(id: string): Promise<void>;
+  mockDeviceDon(id: string): Promise<void>;
+  mockDeviceDoff(id: string): Promise<void>;
+  mockDeviceFold(id: string): Promise<void>;
+  mockDeviceUnfold(id: string): Promise<void>;
+  mockDeviceSetCameraFeed(id: string, fileUrl: string): Promise<void>;
+  mockDeviceSetCapturedImage(id: string, fileUrl: string): Promise<void>;
 }
 
 /** The native EMWDAT module instance. */
@@ -131,4 +142,63 @@ export async function stopStream(): Promise<void> {
 /** Capture a photo from the active stream. Defaults to JPEG format. */
 export async function capturePhoto(format?: PhotoCaptureFormat): Promise<void> {
   return EMWDATModule.capturePhoto(format ?? "jpeg");
+}
+
+// =============================================================================
+// Mock Device functions (DEBUG only on iOS, throws on web/release)
+// =============================================================================
+
+/** Create a mock Ray-Ban Meta device. Returns the device identifier. */
+export async function createMockDevice(): Promise<string> {
+  return EMWDATModule.createMockDevice();
+}
+
+/** Remove a mock device by identifier. */
+export async function removeMockDevice(id: string): Promise<void> {
+  return EMWDATModule.removeMockDevice(id);
+}
+
+/** Get identifiers of all active mock devices. */
+export async function getMockDevices(): Promise<string[]> {
+  return EMWDATModule.getMockDevices();
+}
+
+/** Power on a mock device. */
+export async function mockDevicePowerOn(id: string): Promise<void> {
+  return EMWDATModule.mockDevicePowerOn(id);
+}
+
+/** Power off a mock device. */
+export async function mockDevicePowerOff(id: string): Promise<void> {
+  return EMWDATModule.mockDevicePowerOff(id);
+}
+
+/** Simulate putting the glasses on (don). */
+export async function mockDeviceDon(id: string): Promise<void> {
+  return EMWDATModule.mockDeviceDon(id);
+}
+
+/** Simulate taking the glasses off (doff). */
+export async function mockDeviceDoff(id: string): Promise<void> {
+  return EMWDATModule.mockDeviceDoff(id);
+}
+
+/** Simulate folding the glasses. */
+export async function mockDeviceFold(id: string): Promise<void> {
+  return EMWDATModule.mockDeviceFold(id);
+}
+
+/** Simulate unfolding the glasses. */
+export async function mockDeviceUnfold(id: string): Promise<void> {
+  return EMWDATModule.mockDeviceUnfold(id);
+}
+
+/** Set the camera feed video for a mock device from a local file URL. */
+export async function mockDeviceSetCameraFeed(id: string, fileUrl: string): Promise<void> {
+  return EMWDATModule.mockDeviceSetCameraFeed(id, fileUrl);
+}
+
+/** Set the captured image for a mock device from a local file URL. */
+export async function mockDeviceSetCapturedImage(id: string, fileUrl: string): Promise<void> {
+  return EMWDATModule.mockDeviceSetCapturedImage(id, fileUrl);
 }

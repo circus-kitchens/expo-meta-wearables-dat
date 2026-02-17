@@ -63,7 +63,7 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
     // doesn't embed them — we add a shell script build phase to copy + sign them.
     const target = project.getFirstTarget().uuid;
     const shellScript = `
-FRAMEWORKS=("MWDATCamera" "MWDATCore")
+FRAMEWORKS=("MWDATCamera" "MWDATCore" "MWDATMockDevice")
 for fw in "\${FRAMEWORKS[@]}"; do
   SRC="\${BUILT_PRODUCTS_DIR}/\${fw}.framework"
   DST="\${BUILT_PRODUCTS_DIR}/\${FRAMEWORKS_FOLDER_PATH}/\${fw}.framework"
