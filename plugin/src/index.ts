@@ -8,7 +8,7 @@ import {
 type EMWDATPluginProps = {
   /** URL scheme for Meta AI app callback (required). Do not include "://". */
   urlScheme: string;
-  /** Meta App ID — use "0" for Developer Mode (default). Published apps get a dedicated value from the Wearables Developer Center. */
+  /** Meta App ID — omit or use "" for Developer Mode (default). Published apps get a dedicated value from the Wearables Developer Center. */
   metaAppId?: string;
   /** Client Token from Wearables Developer Center (optional for Developer Mode). */
   clientToken?: string;
@@ -35,7 +35,7 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
     urlScheme = urlScheme.replace(/:\/\/.*$/, "");
   }
 
-  const metaAppId = props.metaAppId ?? "0";
+  const metaAppId = props.metaAppId ?? "";
   const bluetoothDescription =
     props.bluetoothUsageDescription ?? "This app uses Bluetooth to connect to Meta Wearables.";
 

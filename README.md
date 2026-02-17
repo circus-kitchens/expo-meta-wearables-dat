@@ -96,7 +96,7 @@ Add the plugin to your `app.json` / `app.config.js`:
 | Prop                        | Required | Description                                          |
 | --------------------------- | -------- | ---------------------------------------------------- |
 | `urlScheme`                 | Yes      | URL scheme for Meta AI app callback (e.g. `"myapp"`) |
-| `metaAppId`                 | No       | Meta App ID. Defaults to `"0"` (Developer Mode)      |
+| `metaAppId`                 | No       | Meta App ID. Defaults to `""` (Developer Mode)       |
 | `clientToken`               | No       | Client Token from Wearables Developer Center         |
 | `bluetoothUsageDescription` | No       | Custom Bluetooth usage description                   |
 
