@@ -43,7 +43,7 @@ export function StreamPreview({
   onStopStream: () => void;
   onCapturePhoto: () => void;
 }) {
-  const streamActive = streamState === "streaming" || streamState === "starting";
+  const streamActive = streamState !== "stopped";
 
   return (
     <Section title="Streaming">

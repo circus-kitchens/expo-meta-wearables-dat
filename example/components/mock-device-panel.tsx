@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { getDocumentAsync } from "expo-document-picker";
 import {
   createMockDevice,
   removeMockDevice,
@@ -9,6 +10,8 @@ import {
   mockDeviceDoff,
   mockDeviceFold,
   mockDeviceUnfold,
+  mockDeviceSetCameraFeed,
+  mockDeviceSetCapturedImage,
 } from "expo-meta-wearables-dat";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
@@ -20,6 +23,8 @@ interface MockDeviceInfo {
   powered: boolean;
   donned: boolean;
   unfolded: boolean;
+  cameraFeedSet: boolean;
+  capturedImageSet: boolean;
 }
 
 export function MockDevicePanel() {
@@ -35,7 +40,17 @@ export function MockDevicePanel() {
 
   const handleCreate = useCallback(async () => {
     const id = await createMockDevice();
-    setDevices((prev) => [...prev, { id, powered: false, donned: false, unfolded: true }]);
+    setDevices((prev) => [
+      ...prev,
+      {
+        id,
+        powered: false,
+        donned: false,
+        unfolded: true,
+        cameraFeedSet: false,
+        capturedImageSet: false,
+      },
+    ]);
   }, []);
 
   const handleRemove = useCallback(async (id: string) => {
@@ -72,12 +87,36 @@ export function MockDevicePanel() {
     );
   }, []);
 
+  const handleSetCameraFeed = useCallback(async (id: string) => {
+    const result = await getDocumentAsync({ type: "video/*", copyToCacheDirectory: true });
+    if (result.canceled) return;
+    const uri = result.assets[0].uri;
+    await mockDeviceSetCameraFeed(id, uri);
+    setDevices((prev) => prev.map((d) => (d.id === id ? { ...d, cameraFeedSet: true } : d)));
+  }, []);
+
+  const handleSetCapturedImage = useCallback(async (id: string) => {
+    const result = await getDocumentAsync({ type: "image/*", copyToCacheDirectory: true });
+    if (result.canceled) return;
+    const uri = result.assets[0].uri;
+    await mockDeviceSetCapturedImage(id, uri);
+    setDevices((prev) => prev.map((d) => (d.id === id ? { ...d, capturedImageSet: true } : d)));
+  }, []);
+
   const refreshList = useCallback(async () => {
     const ids = await getMockDevices();
     setDevices((prev) => {
       const known = new Map(prev.map((d) => [d.id, d]));
       return ids.map(
-        (id) => known.get(id) ?? { id, powered: false, donned: false, unfolded: true }
+        (id) =>
+          known.get(id) ?? {
+            id,
+            powered: false,
+            donned: false,
+            unfolded: true,
+            cameraFeedSet: false,
+            capturedImageSet: false,
+          }
       );
     });
   }, []);
@@ -124,6 +163,21 @@ export function MockDevicePanel() {
             />
           </View>
 
+          <View style={styles.statusRow}>
+            <StatusChip
+              label="Feed"
+              active={device.cameraFeedSet}
+              activeLabel="SET"
+              inactiveLabel="NONE"
+            />
+            <StatusChip
+              label="Photo"
+              active={device.capturedImageSet}
+              activeLabel="SET"
+              inactiveLabel="NONE"
+            />
+          </View>
+
           <Row>
             <Btn
               label={device.powered ? "Off" : "On"}
@@ -137,6 +191,14 @@ export function MockDevicePanel() {
             <Btn
               label={device.unfolded ? "Fold" : "Unfold"}
               onPress={safe(() => handleFoldToggle(device))}
+            />
+          </Row>
+
+          <Row>
+            <Btn label="Set Camera Feed" onPress={safe(() => handleSetCameraFeed(device.id))} />
+            <Btn
+              label="Set Captured Image"
+              onPress={safe(() => handleSetCapturedImage(device.id))}
             />
           </Row>
         </View>

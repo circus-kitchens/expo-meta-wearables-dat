@@ -322,7 +322,13 @@ public class EMWDATModule: Module {
         }
 
         AsyncFunction("mockDeviceSetCameraFeed") { (id: String, fileUrl: String, promise: Promise) in
-            guard let url = URL(string: fileUrl) else {
+            let url: URL
+            if fileUrl.hasPrefix("file://") {
+                let path = String(fileUrl.dropFirst("file://".count))
+                url = URL(fileURLWithPath: path)
+            } else if let parsed = URL(string: fileUrl) {
+                url = parsed
+            } else {
                 promise.reject("MOCK_DEVICE_ERROR", "Invalid file URL: \(fileUrl)")
                 return
             }
@@ -337,7 +343,13 @@ public class EMWDATModule: Module {
         }
 
         AsyncFunction("mockDeviceSetCapturedImage") { (id: String, fileUrl: String, promise: Promise) in
-            guard let url = URL(string: fileUrl) else {
+            let url: URL
+            if fileUrl.hasPrefix("file://") {
+                let path = String(fileUrl.dropFirst("file://".count))
+                url = URL(fileURLWithPath: path)
+            } else if let parsed = URL(string: fileUrl) {
+                url = parsed
+            } else {
                 promise.reject("MOCK_DEVICE_ERROR", "Invalid file URL: \(fileUrl)")
                 return
             }
