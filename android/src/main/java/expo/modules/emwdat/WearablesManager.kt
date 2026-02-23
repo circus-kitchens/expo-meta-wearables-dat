@@ -1,0 +1,256 @@
+package expo.modules.emwdat
+
+import android.app.Activity
+import android.content.Context
+import com.meta.wearable.dat.core.Wearables
+import com.meta.wearable.dat.core.types.DeviceCompatibility
+import com.meta.wearable.dat.core.types.DeviceIdentifier
+import com.meta.wearable.dat.core.types.Permission
+import com.meta.wearable.dat.core.types.PermissionStatus
+import com.meta.wearable.dat.core.types.RegistrationState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+
+typealias EventEmitter = (String, Map<String, Any>) -> Unit
+
+object WearablesManager {
+    private val logger = EMWDATLogger
+
+    var isConfigured = false
+        private set
+
+    private var eventEmitter: EventEmitter? = null
+    private var scope: CoroutineScope? = null
+
+    // Flow collection jobs
+    private var registrationJob: Job? = null
+    private var devicesJob: Job? = null
+    private var deviceMetadataJobs: MutableMap<DeviceIdentifier, Job> = mutableMapOf()
+
+    // Cached state
+    var currentRegistrationState: String = "unavailable"
+        private set
+    private var currentDevices: Set<DeviceIdentifier> = emptySet()
+    private var deviceNames: MutableMap<DeviceIdentifier, String> = mutableMapOf()
+    private var deviceCompatibilities: MutableMap<DeviceIdentifier, DeviceCompatibility> = mutableMapOf()
+
+    fun setEventEmitter(emitter: EventEmitter) {
+        logger.debug("Manager", "Event emitter set")
+        this.eventEmitter = emitter
+    }
+
+    fun setScope(scope: CoroutineScope) {
+        this.scope = scope
+    }
+
+    fun configure(context: Context) {
+        if (isConfigured) {
+            logger.info("Manager", "SDK already configured, skipping")
+            return
+        }
+
+        logger.info("Manager", "Configuring SDK")
+        Wearables.initialize(context)
+        isConfigured = true
+
+        setupListeners()
+        logger.info("Manager", "SDK configured and listeners attached")
+    }
+
+    private fun setupListeners() {
+        val scope = this.scope ?: return
+
+        registrationJob = scope.launch {
+            Wearables.registrationState.collect { state ->
+                handleRegistrationStateChange(state)
+            }
+        }
+
+        devicesJob = scope.launch {
+            Wearables.devices.collect { devices ->
+                handleDevicesChange(devices)
+            }
+        }
+
+        logger.debug("Manager", "Listeners attached")
+    }
+
+    private fun handleRegistrationStateChange(state: RegistrationState) {
+        val mapped = mapRegistrationState(state)
+        logger.info("Manager", "Registration state changed", mapOf(
+            "from" to currentRegistrationState,
+            "to" to mapped
+        ))
+
+        currentRegistrationState = mapped
+        emitEvent("onRegistrationStateChange", mapOf("state" to mapped))
+    }
+
+    private fun handleDevicesChange(devices: Set<DeviceIdentifier>) {
+        logger.info("Manager", "Devices changed", mapOf("count" to devices.size))
+
+        val previousDevices = currentDevices
+        val addedDevices = devices - previousDevices
+        val removedDevices = previousDevices - devices
+
+        // Remove metadata jobs for removed devices
+        for (deviceId in removedDevices) {
+            deviceMetadataJobs[deviceId]?.cancel()
+            deviceMetadataJobs.remove(deviceId)
+            deviceNames.remove(deviceId)
+            deviceCompatibilities.remove(deviceId)
+            logger.debug("Manager", "Removed device listeners", mapOf("deviceId" to deviceId.toString()))
+        }
+
+        // Add metadata listeners for new devices
+        val currentScope = this.scope ?: return
+        for (deviceId in addedDevices) {
+            val metadataFlow = Wearables.devicesMetadata[deviceId]
+            if (metadataFlow != null) {
+                deviceMetadataJobs[deviceId] = currentScope.launch {
+                    metadataFlow.collect { metadata ->
+                        deviceNames[deviceId] = metadata.name
+                        deviceCompatibilities[deviceId] = metadata.compatibility
+
+                        emitEvent("onCompatibilityChange", mapOf(
+                            "deviceId" to deviceId.toString(),
+                            "compatibility" to mapCompatibility(metadata.compatibility)
+                        ))
+
+                        // Re-emit full device list
+                        emitDeviceList()
+                    }
+                }
+            }
+            logger.debug("Manager", "Added device listeners", mapOf("deviceId" to deviceId.toString()))
+        }
+
+        currentDevices = devices
+        emitDeviceList()
+    }
+
+    private fun emitDeviceList() {
+        emitEvent("onDevicesChange", mapOf(
+            "devices" to currentDevices.map { id -> serializeDevice(id) }
+        ))
+    }
+
+    // MARK: - Registration
+
+    fun startRegistration(activity: Activity) {
+        if (!isConfigured) {
+            throw IllegalStateException("Wearables SDK has not been configured. Call configure() first.")
+        }
+        logger.info("Manager", "Starting registration")
+        Wearables.startRegistration(activity)
+    }
+
+    fun startUnregistration(activity: Activity) {
+        if (!isConfigured) {
+            throw IllegalStateException("Wearables SDK has not been configured. Call configure() first.")
+        }
+        logger.info("Manager", "Starting unregistration")
+        Wearables.startUnregistration(activity)
+    }
+
+    // MARK: - Permissions
+
+    suspend fun checkPermissionStatus(permission: Permission): String {
+        logger.debug("Manager", "Checking permission status", mapOf("permission" to permission.toString()))
+        val result = Wearables.checkPermissionStatus(permission)
+        val status = result.getOrNull()
+        return if (status != null) mapPermissionStatus(status) else "denied"
+    }
+
+    fun requestPermission(activity: Activity, permission: Permission, callback: (String) -> Unit) {
+        if (!isConfigured) {
+            throw IllegalStateException("Wearables SDK has not been configured. Call configure() first.")
+        }
+        logger.info("Manager", "Requesting permission", mapOf("permission" to permission.toString()))
+
+        // Use RequestPermissionContract to create the intent
+        val contract = Wearables.RequestPermissionContract()
+        val intent = contract.createIntent(activity, permission)
+        activity.startActivity(intent)
+
+        // After launching, check status asynchronously
+        scope?.launch {
+            kotlinx.coroutines.delay(2000)
+            val newStatus = checkPermissionStatus(permission)
+            val permName = if (permission == Permission.CAMERA) "camera" else "unknown"
+            emitEvent("onPermissionStatusChange", mapOf(
+                "permission" to permName,
+                "status" to newStatus
+            ))
+            callback(newStatus)
+        }
+    }
+
+    // MARK: - Devices
+
+    fun getDevices(): List<Map<String, Any>> {
+        return currentDevices.map { id -> serializeDevice(id) }
+    }
+
+    fun getDevice(identifier: String): Map<String, Any>? {
+        val deviceId = currentDevices.find { it.toString() == identifier } ?: return null
+        return serializeDevice(deviceId)
+    }
+
+    // MARK: - Serialization
+
+    private fun serializeDevice(id: DeviceIdentifier): Map<String, Any> {
+        return mapOf(
+            "identifier" to id.toString(),
+            "name" to (deviceNames[id] ?: "Unknown"),
+            "linkState" to "connected",
+            "deviceType" to "rayBanMeta",
+            "compatibility" to mapCompatibility(deviceCompatibilities[id] ?: DeviceCompatibility.UNDEFINED)
+        )
+    }
+
+    // MARK: - Mapping Helpers
+
+    private fun mapRegistrationState(state: RegistrationState): String = when (state) {
+        is RegistrationState.Unavailable -> "unavailable"
+        is RegistrationState.Registering -> "registering"
+        is RegistrationState.Registered -> "registered"
+        else -> "unavailable"
+    }
+
+    private fun mapPermissionStatus(status: PermissionStatus): String = when (status) {
+        is PermissionStatus.Granted -> "granted"
+        is PermissionStatus.Denied -> "denied"
+        else -> "denied"
+    }
+
+    private fun mapCompatibility(compat: DeviceCompatibility): String = when (compat) {
+        DeviceCompatibility.COMPATIBLE -> "compatible"
+        DeviceCompatibility.UNDEFINED -> "undefined"
+        DeviceCompatibility.DEVICE_UPDATE_REQUIRED -> "deviceUpdateRequired"
+        DeviceCompatibility.SDK_UPDATE_REQUIRED -> "sdkUpdateRequired"
+    }
+
+    // MARK: - Event Emission
+
+    private fun emitEvent(name: String, body: Map<String, Any>) {
+        logger.debug("Manager", "Emitting event", mapOf("event" to name))
+        eventEmitter?.invoke(name, body)
+    }
+
+    // MARK: - Cleanup
+
+    fun cleanup() {
+        logger.info("Manager", "Cleaning up listeners")
+        registrationJob?.cancel()
+        devicesJob?.cancel()
+        deviceMetadataJobs.values.forEach { it.cancel() }
+        deviceMetadataJobs.clear()
+        deviceNames.clear()
+        deviceCompatibilities.clear()
+        currentDevices = emptySet()
+        currentRegistrationState = "unavailable"
+        isConfigured = false
+    }
+}
