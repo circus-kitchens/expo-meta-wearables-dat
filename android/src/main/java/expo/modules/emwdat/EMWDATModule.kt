@@ -1,5 +1,10 @@
 package expo.modules.emwdat
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import kotlinx.coroutines.CoroutineScope
@@ -69,6 +74,22 @@ class EMWDATModule : Module() {
         AsyncFunction("configure") {
             val context = appContext.reactContext?.applicationContext
                 ?: throw Exception("Application context not available")
+
+            // Request BLUETOOTH_CONNECT runtime permission on Android 12+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val activity = appContext.currentActivity
+                if (activity != null && ContextCompat.checkSelfPermission(
+                        activity, Manifest.permission.BLUETOOTH_CONNECT
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    ActivityCompat.requestPermissions(
+                        activity,
+                        arrayOf(Manifest.permission.BLUETOOTH_CONNECT),
+                        1001
+                    )
+                }
+            }
+
             WearablesManager.configure(context)
         }
 
