@@ -3,19 +3,18 @@
 [![npm version](https://img.shields.io/npm/v/expo-meta-wearables-dat)](https://www.npmjs.com/package/expo-meta-wearables-dat)
 [![CI](https://github.com/circus-kitchens/expo-meta-wearables-dat/actions/workflows/ci.yml/badge.svg)](https://github.com/circus-kitchens/expo-meta-wearables-dat/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/expo-meta-wearables-dat)](./LICENSE)
-![platform: iOS](https://img.shields.io/badge/platform-iOS-blue)
+![platform: iOS | Android](https://img.shields.io/badge/platform-iOS%20%7C%20Android-blue)
 
-Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart glasses) into React Native apps. Provides device registration, permissions, camera streaming, photo capture, and a React hook — all bridged from the official Meta Wearables DAT iOS SDK.
+Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart glasses) into React Native apps. Provides device registration, permissions, camera streaming, photo capture, and a React hook — bridged from the official Meta Wearables DAT SDK on both iOS and Android.
 
 > **Official SDK docs:** [Meta Wearables DAT — Developer Documentation](https://wearables.developer.meta.com/docs/develop)
 >
 > You must register your app in the [Meta Wearables Developer Center](https://wearables.developer.meta.com/) to obtain your App ID and Client Token.
 
-> **Disclaimer:** This project is **not affiliated with, endorsed by, or sponsored by Meta Platforms, Inc.** It is an independent, community-maintained wrapper around the publicly available Meta Wearables DAT iOS SDK.
+> **Disclaimer:** This project is **not affiliated with, endorsed by, or sponsored by Meta Platforms, Inc.** It is an independent, community-maintained wrapper around the publicly available Meta Wearables DAT SDK.
 
 ## Non-goals
 
-- **Android** — not supported yet (stubs throw clear errors)
 - **Background streaming** — the SDK doesn't support it
 - **Expo Go** — requires a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (native code)
 
@@ -28,7 +27,7 @@ Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart gl
 - Photo capture (JPEG / HEIC)
 - `useMetaWearables` React hook with full state management
 - Mock device simulation for testing (debug builds)
-- Expo config plugin (auto-configures Info.plist, URL schemes, deployment target)
+- Expo config plugin (auto-configures Info.plist, AndroidManifest, URL schemes, deployment target)
 
 ## Compatibility
 
@@ -37,6 +36,7 @@ Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart gl
 | React Native     | 0.76+    |
 | Expo SDK         | 52+      |
 | iOS              | 16.0+    |
+| Android          | API 31+  |
 | Xcode            | 16+      |
 | Swift            | 5.9+     |
 | New Architecture | Untested |
@@ -66,9 +66,9 @@ yarn add expo-meta-wearables-dat
 npm install expo-meta-wearables-dat
 ```
 
-## iOS Setup
+## Setup
 
-### 1. Config plugin
+### Config plugin
 
 Add the plugin to your `app.json` / `app.config.js`:
 
@@ -93,9 +93,11 @@ Add the plugin to your `app.json` / `app.config.js`:
 | `urlScheme`                 | Yes      | URL scheme for Meta AI app callback (e.g. `"myapp"`)                                                          |
 | `metaAppId`                 | No       | Meta App ID from [Wearables Developer Center](https://wearables.developer.meta.com/). Omit for Developer Mode |
 | `clientToken`               | No       | Client Token from Wearables Developer Center                                                                  |
-| `bluetoothUsageDescription` | No       | Custom Bluetooth usage description                                                                            |
+| `bluetoothUsageDescription` | No       | Custom Bluetooth usage description (iOS only)                                                                 |
 
-The plugin automatically sets:
+### iOS
+
+The plugin automatically configures:
 
 - `CFBundleURLTypes` (URL scheme)
 - `LSApplicationQueriesSchemes` (`fb-viewapp`)
@@ -106,18 +108,29 @@ The plugin automatically sets:
 - iOS deployment target to 16.0
 - Embeds MWDATCamera & MWDATCore dynamic frameworks
 
-### 2. Prebuild
+### Android
 
-After adding the plugin, generate the native project:
+The plugin automatically configures:
+
+- `<meta-data>` entries for `APPLICATION_ID` and `CLIENT_TOKEN` in AndroidManifest.xml
+- Deep link `<intent-filter>` on MainActivity with the configured URL scheme
+- Bluetooth permissions (`BLUETOOTH`, `BLUETOOTH_CONNECT`)
+
+> **Note:** The Android SDK AARs (v0.4.0) are bundled locally in `android/libs/` due to a [fat AAR conflict](https://github.com/facebook/meta-wearables-dat-android/issues/24) with React Native. This will be resolved in SDK v0.5.
+
+### Prebuild
+
+After adding the plugin, generate the native projects:
 
 ```bash
 npx expo prebuild
 ```
 
-### 3. Prerequisites
+### Prerequisites
 
 - The user must have the **Meta AI** app installed and paired with their glasses
-- A physical iOS device is required (no simulator support)
+- A physical device is required (no simulator/emulator support)
+- **Android**: minSdk 31 (Android 12+)
 
 ## Quick Start
 
@@ -314,7 +327,7 @@ See [`src/EMWDAT.types.ts`](./src/EMWDAT.types.ts) for the full list.
 
 ### Mock Device API (Testing)
 
-Functions for simulating Meta Wearables devices during development using the SDK's `MWDATMockDevice` framework. Only available in debug builds on iOS.
+Functions for simulating Meta Wearables devices during development using the SDK's mock device framework. Only available in debug builds.
 
 ```ts
 import {
@@ -365,9 +378,11 @@ The `example/` directory contains a full demo app:
    ```bash
    npx expo prebuild --clean
    npx expo run:ios --device
+   # or
+   npx expo run:android --device
    ```
 
-> Requires a physical iOS device with a paired Meta Wearables device.
+> Requires a physical device with a paired Meta Wearables device.
 
 ## Troubleshooting
 
@@ -395,6 +410,14 @@ Ensure the glasses hinges are open and the device is connected (`linkState: "con
 
 This wipes `Podfile.properties.json`. Re-run prebuild (the config plugin will re-inject the deployment target) and then `pod install`.
 
+### Android: Mock device stream shows no frames
+
+The mock video feed **must be HEVC (H.265) encoded**. The SDK requests `video/hevc` mime type and rejects H.264 (AVC) videos. Resolution does not matter — only the codec.
+
+### Android: Build fails with duplicate class errors
+
+The Meta SDK v0.4.0 AARs bundle classes that conflict with React Native's copies (fbjni, fbcore). Ensure you're using the local AAR approach via `gradleAarProjects` in `expo-module.config.json`. This is handled automatically by the package.
+
 ## Privacy & Data
 
 - The library **does not store, persist, or log** personally identifiable information
@@ -407,7 +430,6 @@ See [SECURITY.md](./SECURITY.md) for the vulnerability reporting process.
 
 ## Roadmap
 
-- Android support
 - Background streaming (pending SDK support)
 - New Architecture validation
 - Device state (battery, hinge) publishers (pending SDK support)

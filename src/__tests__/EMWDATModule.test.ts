@@ -42,8 +42,17 @@ describe("EMWDATModule wrappers", () => {
       expect(native.addListener).toHaveBeenCalledWith("onRegistrationStateChange", listener);
     });
 
-    it("returns null on non-iOS platforms", () => {
+    it("delegates to native module on Android", () => {
       (Platform as any).OS = "android";
+      const listener = jest.fn();
+      const sub = addListener("onRegistrationStateChange", listener);
+      expect(sub).not.toBeNull();
+      expect(native.addListener).toHaveBeenCalledWith("onRegistrationStateChange", listener);
+      (Platform as any).OS = "ios";
+    });
+
+    it("returns null on web", () => {
+      (Platform as any).OS = "web";
       const sub = addListener("onRegistrationStateChange", jest.fn());
       expect(sub).toBeNull();
       (Platform as any).OS = "ios";

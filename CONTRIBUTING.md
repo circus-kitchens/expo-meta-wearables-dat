@@ -23,9 +23,11 @@ Thanks for your interest in contributing to `expo-meta-wearables-dat`!
    cd example
    npx expo prebuild --clean
    npx expo run:ios
+   # or
+   npx expo run:android
    ```
 
-   > Note: The example app requires a physical iOS device with a paired Meta Wearables device. Simulator builds will compile but SDK features won't work.
+   > Note: The example app requires a physical device with a paired Meta Wearables device. Simulator/emulator builds will compile but SDK features won't work.
 
 ## Available Commands
 
@@ -63,6 +65,6 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/) e
 
 - `src/` — TypeScript API (module, types, hook, view)
 - `ios/` — Swift native implementation (ExpoModulesCore)
-- `android/` — Kotlin stubs
-- `plugin/` — Expo config plugin (Info.plist injection)
+- `android/` — Kotlin native implementation
+- `plugin/` — Expo config plugin (Info.plist + AndroidManifest configuration)
 - `example/` — Example Expo app

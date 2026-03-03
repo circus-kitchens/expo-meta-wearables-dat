@@ -11,7 +11,7 @@ We will acknowledge reports within 48 hours and aim to release patches promptly.
 
 ## Data Handling
 
-This library acts as a bridge between your React Native app and the Meta Wearables DAT iOS SDK. Important notes:
+This library acts as a bridge between your React Native app and the Meta Wearables DAT SDK (iOS and Android). Important notes:
 
 - **No PII storage**: The library does not store, persist, or log personally identifiable information.
 - **No network calls**: The library makes no network requests beyond what the Meta Wearables DAT SDK itself performs.

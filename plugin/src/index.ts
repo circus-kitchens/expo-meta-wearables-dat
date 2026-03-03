@@ -1,5 +1,6 @@
 import {
   type ConfigPlugin,
+  withAndroidManifest,
   withInfoPlist,
   withPodfileProperties,
   withXcodeProject,
@@ -38,6 +39,10 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
   const metaAppId = props.metaAppId ?? "";
   const bluetoothDescription =
     props.bluetoothUsageDescription ?? "This app uses Bluetooth to connect to Meta Wearables.";
+
+  // =========================================================================
+  // iOS Configuration
+  // =========================================================================
 
   // Set iOS deployment target to 16.0 (required by Meta Wearables DAT SDK)
   config = withPodfileProperties(config, (config) => {
@@ -95,7 +100,7 @@ done
     return config;
   });
 
-  return withInfoPlist(config, (config) => {
+  config = withInfoPlist(config, (config) => {
     const plist = config.modResults;
 
     // URL scheme for Meta AI app callback — add to CFBundleURLTypes
@@ -132,6 +137,80 @@ done
 
     return config;
   });
+
+  // =========================================================================
+  // Android Configuration
+  // =========================================================================
+
+  // TODO(v0.5): Re-enable GitHub Packages maven repo once Meta fixes the fat AAR
+  // bundling issue. SDK deps will move from local AARs back to Maven coordinates.
+  // See: https://github.com/facebook/meta-wearables-dat-android/issues/24
+  //      https://github.com/facebook/meta-wearables-dat-android/discussions/25
+
+  // Add meta-data and deep link intent-filter to AndroidManifest
+  config = withAndroidManifest(config, (config) => {
+    const manifest = config.modResults;
+    const application = manifest.manifest.application?.[0];
+    if (!application) return config;
+
+    // Add APPLICATION_ID meta-data
+    const metaData = application["meta-data"] ?? [];
+    const appIdKey = "com.meta.wearable.mwdat.APPLICATION_ID";
+    if (!metaData.some((m: any) => m.$?.["android:name"] === appIdKey)) {
+      metaData.push({
+        $: {
+          "android:name": appIdKey,
+          "android:value": metaAppId || "0",
+        },
+      });
+    }
+
+    // Add CLIENT_TOKEN meta-data if provided
+    if (props.clientToken) {
+      const clientTokenKey = "com.meta.wearable.mwdat.CLIENT_TOKEN";
+      if (!metaData.some((m: any) => m.$?.["android:name"] === clientTokenKey)) {
+        metaData.push({
+          $: {
+            "android:name": clientTokenKey,
+            "android:value": props.clientToken,
+          },
+        });
+      }
+    }
+
+    application["meta-data"] = metaData;
+
+    // Add deep link intent-filter to main activity
+    const mainActivity = application.activity?.find(
+      (a: any) =>
+        a.$?.["android:name"] === ".MainActivity" ||
+        a.$?.["android:name"]?.endsWith(".MainActivity")
+    );
+
+    if (mainActivity) {
+      const intentFilters = mainActivity["intent-filter"] ?? [];
+      const hasScheme = intentFilters.some((f: any) =>
+        f.data?.some((d: any) => d.$?.["android:scheme"] === urlScheme)
+      );
+
+      if (!hasScheme) {
+        intentFilters.push({
+          action: [{ $: { "android:name": "android.intent.action.VIEW" } }],
+          category: [
+            { $: { "android:name": "android.intent.category.DEFAULT" } },
+            { $: { "android:name": "android.intent.category.BROWSABLE" } },
+          ],
+          data: [{ $: { "android:scheme": urlScheme } }],
+        });
+      }
+
+      mainActivity["intent-filter"] = intentFilters;
+    }
+
+    return config;
+  });
+
+  return config;
 };
 
 export default withEMWDAT;

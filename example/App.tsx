@@ -101,7 +101,9 @@ export default function App() {
       setLastPhoto(photo);
     },
     onStreamError: (error) => {
-      addLogEntry(`Stream error: ${formatError(error)}`, "#ef4444");
+      const msg = "message" in error ? (error as any).message : formatError(error);
+      addLogEntry(`Stream error: ${msg}`, "#ef4444");
+      Alert.alert("Stream Error", msg);
     },
     onPermissionStatusChange: (permission, status) => {
       const color = status === "granted" ? "#22c55e" : "#ef4444";

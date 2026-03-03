@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "expo.modules.emwdat.example",
-      "appleTeamId": "YOUR_APPLE_TEAM_ID"
+      "appleTeamId": "L2RUMLW994"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,8 +34,8 @@
         "../app.plugin.js",
         {
           "urlScheme": "emwdat-example",
-          "metaAppId": "YOUR_META_APP_ID",
-          "clientToken": "YOUR_CLIENT_TOKEN",
+          "metaAppId": "879777611505837",
+          "clientToken": "AR|879777611505837|9b6ee93c3e702e47516fb8462fe48e83",
           "bluetoothUsageDescription": "This app uses Bluetooth to communicate with Meta Wearables glasses."
         }
       ]
