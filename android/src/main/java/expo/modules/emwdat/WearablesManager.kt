@@ -9,7 +9,7 @@ import com.meta.wearable.dat.core.types.DeviceType
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
 import com.meta.wearable.dat.core.types.RegistrationState
-import com.meta.wearable.dat.core.types.SessionState
+import com.meta.wearable.dat.core.session.SessionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -227,9 +227,9 @@ object WearablesManager {
         val intent = contract.createIntent(activity, permission)
         activity.startActivity(intent)
 
-        // Poll for permission status change after the user completes the flow
-        repeat(15) {
-            kotlinx.coroutines.delay(1000)
+        // Poll for permission status change (500ms intervals, 30s total)
+        repeat(60) {
+            kotlinx.coroutines.delay(500)
             val status = checkPermissionStatus(permission)
             if (status == "granted") {
                 emitEvent("onPermissionStatusChange", mapOf(

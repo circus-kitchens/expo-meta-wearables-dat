@@ -142,7 +142,7 @@ object StreamSessionManager {
         logger.info("StreamSession", "Stream stopped")
     }
 
-    suspend fun capturePhoto(context: Context): Map<String, Any> {
+    suspend fun capturePhoto(context: Context, format: String) {
         val session = streamSession
             ?: throw Exception("No active stream session")
 
@@ -150,7 +150,7 @@ object StreamSessionManager {
             throw Exception("Cannot capture photo - state is '$currentState', expected 'streaming'")
         }
 
-        logger.info("StreamSession", "Capturing photo")
+        logger.info("StreamSession", "Capturing photo", mapOf("requestedFormat" to format))
         val result = session.capturePhoto()
             ?: throw Exception("capturePhoto returned null")
 
@@ -159,8 +159,7 @@ object StreamSessionManager {
             throw Exception("Photo capture failed: ${error.message}", error)
         }
 
-        return handlePhotoCapture(context, photoData)
-            ?: throw Exception("Failed to process captured photo data")
+        handlePhotoCapture(context, photoData, format)
     }
 
     // MARK: - Frame Handling
@@ -258,39 +257,61 @@ object StreamSessionManager {
 
     // MARK: - Photo Handling
 
-    private fun handlePhotoCapture(context: Context, photoData: PhotoData): Map<String, Any>? {
+    private fun handlePhotoCapture(context: Context, photoData: PhotoData, requestedFormat: String) {
         val timestamp = System.currentTimeMillis()
         val tempDir = context.cacheDir
 
-        return when (photoData) {
+        when (photoData) {
             is PhotoData.Bitmap -> {
                 val filename = "emwdat_photo_${timestamp}.jpg"
                 val file = File(tempDir, filename)
                 file.outputStream().use { out ->
                     photoData.bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
                 }
-                logger.info("StreamSession", "Photo saved (Bitmap)", mapOf("path" to file.absolutePath))
+                logger.info("StreamSession", "Photo saved (Bitmap→JPEG)", mapOf("path" to file.absolutePath))
 
-                val payload = mutableMapOf<String, Any>(
+                emitEvent("onPhotoCaptured", mapOf(
                     "filePath" to file.absolutePath,
                     "format" to "jpeg",
                     "timestamp" to timestamp,
                     "width" to photoData.bitmap.width,
                     "height" to photoData.bitmap.height
-                )
-                emitEvent("onPhotoCaptured", payload)
-                payload
+                ))
             }
             is PhotoData.HEIC -> {
-                val filename = "emwdat_photo_${timestamp}.heic"
-                val file = File(tempDir, filename)
                 val buffer = photoData.data
                 val bytes = ByteArray(buffer.remaining())
                 val originalPos = buffer.position()
                 buffer.get(bytes)
                 buffer.position(originalPos)
-                file.writeBytes(bytes)
 
+                // If JPEG requested, decode HEIC to bitmap and re-encode as JPEG
+                if (requestedFormat == "jpeg") {
+                    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    if (bitmap != null) {
+                        val filename = "emwdat_photo_${timestamp}.jpg"
+                        val file = File(tempDir, filename)
+                        file.outputStream().use { out ->
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                        }
+                        logger.info("StreamSession", "Photo saved (HEIC→JPEG)", mapOf("path" to file.absolutePath))
+
+                        emitEvent("onPhotoCaptured", mapOf(
+                            "filePath" to file.absolutePath,
+                            "format" to "jpeg",
+                            "timestamp" to timestamp,
+                            "width" to bitmap.width,
+                            "height" to bitmap.height
+                        ))
+                        return
+                    }
+                    logger.warn("StreamSession", "HEIC→JPEG conversion failed, saving as HEIC")
+                }
+
+                // Save as HEIC (default or conversion failed)
+                val filename = "emwdat_photo_${timestamp}.heic"
+                val file = File(tempDir, filename)
+                file.writeBytes(bytes)
                 logger.info("StreamSession", "Photo saved (HEIC)", mapOf("path" to file.absolutePath))
 
                 // Try to get dimensions from EXIF
@@ -314,11 +335,9 @@ object StreamSessionManager {
                     payload["height"] = height
                 }
                 emitEvent("onPhotoCaptured", payload)
-                payload
             }
             else -> {
                 logger.warn("StreamSession", "Unknown PhotoData type")
-                null
             }
         }
     }

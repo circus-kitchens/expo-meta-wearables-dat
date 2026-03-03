@@ -173,12 +173,13 @@ class EMWDATModule : Module() {
 
         // MARK: - Photo Capture
 
-        AsyncFunction("capturePhoto") { _: String ->
+        AsyncFunction("capturePhoto") { format: String ->
             val context = appContext.reactContext?.applicationContext
                 ?: throw Exception("Application context not available")
             runBlocking {
-                StreamSessionManager.capturePhoto(context)
+                StreamSessionManager.capturePhoto(context, format)
             }
+            null
         }
 
         // MARK: - Mock Device (DEBUG only)
