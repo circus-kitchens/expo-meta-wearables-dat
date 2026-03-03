@@ -175,11 +175,22 @@ object WearablesManager {
         }
         logger.info("Manager", "Requesting permission", mapOf("permission" to permission.toString()))
 
+        val permName = if (permission == Permission.CAMERA) "camera" else "unknown"
+
+        // Return early if already granted
+        val currentStatus = checkPermissionStatus(permission)
+        if (currentStatus == "granted") {
+            logger.info("Manager", "Permission already granted, skipping request")
+            emitEvent("onPermissionStatusChange", mapOf(
+                "permission" to permName,
+                "status" to currentStatus
+            ))
+            return currentStatus
+        }
+
         val contract = Wearables.RequestPermissionContract()
         val intent = contract.createIntent(activity, permission)
         activity.startActivity(intent)
-
-        val permName = if (permission == Permission.CAMERA) "camera" else "unknown"
 
         // Poll for permission status change after the user completes the flow
         repeat(15) {
