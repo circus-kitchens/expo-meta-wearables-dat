@@ -63,7 +63,7 @@ export function addListener<E extends keyof EMWDATModuleEvents>(
   eventName: E,
   listener: EMWDATModuleEvents[E]
 ): { remove: () => void } | null {
-  if (Platform.OS === "web") {
+  if (Platform.OS !== "ios") {
     return null;
   }
   return EMWDATModule.addListener(eventName, listener);
