@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Expo native module for Meta Wearables DAT iOS SDK 0.4. Android/web stubs throw "not supported".
+Expo native module for Meta Wearables DAT SDK 0.4 (iOS + Android). Web stubs throw "not supported".
 
 ## Commands
 
@@ -16,8 +16,8 @@ pnpm lint     # ESLint
 
 - `src/` — TS API: module (`EMWDATModule.ts`), types, `useMetaWearables` hook, `EMWDATStreamView` native view. Web stubs in `.web.ts` files.
 - `ios/` — Swift: `EMWDATModule.swift` (module def), `WearablesManager.swift` + `StreamSessionManager.swift` (@MainActor singletons), `EMWDATStreamView.swift` (video), `EMWDATAppDelegateSubscriber.swift` (deep links).
-- `android/` — Kotlin stubs only.
-- `plugin/` — Config plugin: Info.plist, Xcode, Podfile setup for iOS. Entry: `app.plugin.js`.
+- `android/` — Kotlin: `EMWDATModule.kt` (module def), `WearablesManager.kt` + `StreamSessionManager.kt` (singletons), `MockDeviceManager.kt`, `EMWDATView.kt` (video), `EMWDATLogger.kt`. Local AARs in `android/libs/`.
+- `plugin/` — Config plugin: Info.plist, Xcode, Podfile setup for iOS; AndroidManifest meta-data + intent-filter for Android. Entry: `app.plugin.js`.
 - `example/` — Standalone Expo app with own `node_modules`. Linked via metro `watchFolders`.
 
 ## SDK Docs

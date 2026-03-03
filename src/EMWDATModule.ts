@@ -54,7 +54,7 @@ export const EMWDATModule = requireNativeModule<EMWDATNativeModule>("EMWDAT");
 // =============================================================================
 
 /**
- * Subscribe to a native SDK event. Returns a subscription handle, or `null` on non-iOS platforms.
+ * Subscribe to a native SDK event. Returns a subscription handle, or `null` on web.
  *
  * @param eventName - The event to listen for (e.g. `"onRegistrationStateChanged"`).
  * @param listener - Callback invoked when the event fires.
@@ -63,7 +63,7 @@ export function addListener<E extends keyof EMWDATModuleEvents>(
   eventName: E,
   listener: EMWDATModuleEvents[E]
 ): { remove: () => void } | null {
-  if (Platform.OS !== "ios") {
+  if (Platform.OS === "web") {
     return null;
   }
   return EMWDATModule.addListener(eventName, listener);
@@ -145,7 +145,7 @@ export async function capturePhoto(format?: PhotoCaptureFormat): Promise<void> {
 }
 
 // =============================================================================
-// Mock Device functions (DEBUG only on iOS, throws on web/release)
+// Mock Device functions (DEBUG only, throws on web/release)
 // =============================================================================
 
 /** Create a mock Ray-Ban Meta device. Returns the device identifier. */
