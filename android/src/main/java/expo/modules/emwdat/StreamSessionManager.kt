@@ -38,6 +38,7 @@ object StreamSessionManager {
 
     var currentState: String = "stopped"
         private set
+    private var previousRawState: StreamSessionState? = null
 
     // Callbacks
     private var eventEmitter: EventEmitter? = null
@@ -107,7 +108,7 @@ object StreamSessionManager {
         // Timeout: if state doesn't reach STREAMING within 10s, emit error
         streamStartTimeoutJob = scope?.launch {
             kotlinx.coroutines.delay(10_000)
-            if (currentState == "started" || currentState == "starting") {
+            if (currentState == "starting") {
                 val errorMsg = "Stream failed to start. State stuck at '$currentState'. " +
                     "If using a mock device, ensure the video feed is HEVC (H.265) encoded. " +
                     "The SDK requires video/hevc codec — H.264 (AVC) videos will be rejected."
@@ -134,6 +135,7 @@ object StreamSessionManager {
         streamSession = null
         val previousState = currentState
         currentState = "stopped"
+        previousRawState = null
         if (previousState != "stopped") {
             emitEvent("onStreamStateChange", mapOf("state" to "stopped"))
         }
@@ -212,18 +214,39 @@ object StreamSessionManager {
     private fun handleStateChange(state: StreamSessionState) {
         val mapped = mapStreamState(state)
         val previousState = currentState
+        val prevRaw = previousRawState
         logger.info("StreamSession", "State changed", mapOf(
             "from" to previousState,
             "to" to mapped
         ))
 
         currentState = mapped
+        previousRawState = state
         emitEvent("onStreamStateChange", mapOf("state" to mapped))
 
         // Cancel timeout once streaming is active
         if (state == StreamSessionState.STREAMING) {
             streamStartTimeoutJob?.cancel()
             streamStartTimeoutJob = null
+        }
+
+        // Detect unexpected terminal transitions
+        if (prevRaw != null &&
+            (state == StreamSessionState.STOPPED || state == StreamSessionState.CLOSED)) {
+            val isUnexpected = when (prevRaw) {
+                // Was streaming but skipped STOPPING
+                StreamSessionState.STREAMING -> true
+                // Stream failed to start
+                StreamSessionState.STARTING, StreamSessionState.STARTED -> true
+                else -> false
+            }
+            if (isUnexpected) {
+                logger.error("StreamSession", "Unexpected stream stop", mapOf(
+                    "previousRawState" to prevRaw.toString(),
+                    "newState" to state.toString()
+                ))
+                emitEvent("onStreamError", mapOf("type" to "internalError"))
+            }
         }
 
         // Only auto-stop if transitioning from an active state (not the initial emission)
@@ -305,7 +328,7 @@ object StreamSessionManager {
     private fun mapStreamState(state: StreamSessionState): String = when (state) {
         StreamSessionState.STOPPED -> "stopped"
         StreamSessionState.STARTING -> "starting"
-        StreamSessionState.STARTED -> "started"
+        StreamSessionState.STARTED -> "starting"
         StreamSessionState.STREAMING -> "streaming"
         StreamSessionState.STOPPING -> "stopping"
         StreamSessionState.CLOSED -> "stopped"

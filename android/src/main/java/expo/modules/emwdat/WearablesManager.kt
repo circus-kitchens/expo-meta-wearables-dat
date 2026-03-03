@@ -5,9 +5,11 @@ import android.content.Context
 import com.meta.wearable.dat.core.Wearables
 import com.meta.wearable.dat.core.types.DeviceCompatibility
 import com.meta.wearable.dat.core.types.DeviceIdentifier
+import com.meta.wearable.dat.core.types.DeviceType
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
 import com.meta.wearable.dat.core.types.RegistrationState
+import com.meta.wearable.dat.core.types.SessionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -27,6 +29,7 @@ object WearablesManager {
     private var registrationJob: Job? = null
     private var devicesJob: Job? = null
     private var deviceMetadataJobs: MutableMap<DeviceIdentifier, Job> = mutableMapOf()
+    private var deviceSessionStateJobs: MutableMap<DeviceIdentifier, Job> = mutableMapOf()
 
     // Cached state
     var currentRegistrationState: String = "unavailable"
@@ -34,6 +37,8 @@ object WearablesManager {
     private var currentDevices: Set<DeviceIdentifier> = emptySet()
     private var deviceNames: MutableMap<DeviceIdentifier, String> = mutableMapOf()
     private var deviceCompatibilities: MutableMap<DeviceIdentifier, DeviceCompatibility> = mutableMapOf()
+    private var deviceAvailable: MutableMap<DeviceIdentifier, Boolean> = mutableMapOf()
+    private var deviceTypes: MutableMap<DeviceIdentifier, DeviceType> = mutableMapOf()
 
     fun setEventEmitter(emitter: EventEmitter) {
         logger.debug("Manager", "Event emitter set")
@@ -98,8 +103,12 @@ object WearablesManager {
         for (deviceId in removedDevices) {
             deviceMetadataJobs[deviceId]?.cancel()
             deviceMetadataJobs.remove(deviceId)
+            deviceSessionStateJobs[deviceId]?.cancel()
+            deviceSessionStateJobs.remove(deviceId)
             deviceNames.remove(deviceId)
             deviceCompatibilities.remove(deviceId)
+            deviceAvailable.remove(deviceId)
+            deviceTypes.remove(deviceId)
             logger.debug("Manager", "Removed device listeners", mapOf("deviceId" to deviceId.toString()))
         }
 
@@ -113,6 +122,20 @@ object WearablesManager {
                         deviceNames[deviceId] = metadata.name
                         deviceCompatibilities[deviceId] = metadata.compatibility
 
+                        // Track link state (available)
+                        val previousAvailable = deviceAvailable[deviceId]
+                        deviceAvailable[deviceId] = metadata.available
+                        if (previousAvailable != null && previousAvailable != metadata.available) {
+                            val linkState = if (metadata.available) "connected" else "disconnected"
+                            emitEvent("onLinkStateChange", mapOf(
+                                "deviceId" to deviceId.toString(),
+                                "linkState" to linkState
+                            ))
+                        }
+
+                        // Track device type
+                        deviceTypes[deviceId] = metadata.deviceType
+
                         emitEvent("onCompatibilityChange", mapOf(
                             "deviceId" to deviceId.toString(),
                             "compatibility" to mapCompatibility(metadata.compatibility)
@@ -123,6 +146,18 @@ object WearablesManager {
                     }
                 }
             }
+
+            // Collect device session state
+            deviceSessionStateJobs[deviceId] = currentScope.launch {
+                Wearables.getDeviceSessionState(deviceId).collect { sessionState ->
+                    val mapped = mapSessionState(sessionState)
+                    emitEvent("onDeviceSessionStateChange", mapOf(
+                        "deviceId" to deviceId.toString(),
+                        "sessionState" to mapped
+                    ))
+                }
+            }
+
             logger.debug("Manager", "Added device listeners", mapOf("deviceId" to deviceId.toString()))
         }
 
@@ -227,11 +262,16 @@ object WearablesManager {
     // MARK: - Serialization
 
     private fun serializeDevice(id: DeviceIdentifier): Map<String, Any> {
+        val linkState = when (deviceAvailable[id]) {
+            true -> "connected"
+            false -> "disconnected"
+            null -> "connected" // Default before first metadata arrives
+        }
         return mapOf(
             "identifier" to id.toString(),
             "name" to (deviceNames[id] ?: "Unknown"),
-            "linkState" to "connected",
-            "deviceType" to "rayBanMeta",
+            "linkState" to linkState,
+            "deviceType" to mapDeviceType(deviceTypes[id]),
             "compatibility" to mapCompatibility(deviceCompatibilities[id] ?: DeviceCompatibility.UNDEFINED)
         )
     }
@@ -240,8 +280,10 @@ object WearablesManager {
 
     private fun mapRegistrationState(state: RegistrationState): String = when (state) {
         is RegistrationState.Unavailable -> "unavailable"
+        is RegistrationState.Available -> "available"
         is RegistrationState.Registering -> "registering"
         is RegistrationState.Registered -> "registered"
+        is RegistrationState.Unregistering -> "unavailable"
         else -> "unavailable"
     }
 
@@ -256,6 +298,23 @@ object WearablesManager {
         DeviceCompatibility.UNDEFINED -> "undefined"
         DeviceCompatibility.DEVICE_UPDATE_REQUIRED -> "deviceUpdateRequired"
         DeviceCompatibility.SDK_UPDATE_REQUIRED -> "sdkUpdateRequired"
+    }
+
+    private fun mapDeviceType(type: DeviceType?): String = when (type) {
+        DeviceType.RAYBAN_META -> "rayBanMeta"
+        DeviceType.OAKLEY_META_HSTN -> "oakleyMetaHSTN"
+        DeviceType.OAKLEY_META_VANGUARD -> "oakleyMetaVanguard"
+        DeviceType.META_RAYBAN_DISPLAY -> "metaRayBanDisplay"
+        DeviceType.UNKNOWN -> "unknown"
+        null -> "unknown"
+        else -> "unknown"
+    }
+
+    private fun mapSessionState(state: SessionState): String = when (state) {
+        SessionState.STOPPED -> "stopped"
+        SessionState.RUNNING -> "running"
+        SessionState.PAUSED -> "paused"
+        else -> "unknown"
     }
 
     // MARK: - Event Emission
@@ -273,8 +332,12 @@ object WearablesManager {
         devicesJob?.cancel()
         deviceMetadataJobs.values.forEach { it.cancel() }
         deviceMetadataJobs.clear()
+        deviceSessionStateJobs.values.forEach { it.cancel() }
+        deviceSessionStateJobs.clear()
         deviceNames.clear()
         deviceCompatibilities.clear()
+        deviceAvailable.clear()
+        deviceTypes.clear()
         currentDevices = emptySet()
         currentRegistrationState = "unavailable"
         isConfigured = false
