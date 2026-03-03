@@ -107,37 +107,33 @@ object StreamSessionManager {
         stateJob = null
         streamSession?.close()
         streamSession = null
+        val previousState = currentState
         currentState = "stopped"
+        if (previousState != "stopped") {
+            emitEvent("onStreamStateChange", mapOf("state" to "stopped"))
+        }
         logger.info("StreamSession", "Stream stopped")
     }
 
-    suspend fun capturePhoto(context: Context): Map<String, Any>? {
-        val session = streamSession ?: run {
-            logger.warn("StreamSession", "Cannot capture photo - no active stream")
-            return null
-        }
+    suspend fun capturePhoto(context: Context): Map<String, Any> {
+        val session = streamSession
+            ?: throw Exception("No active stream session")
 
         if (currentState != "streaming") {
-            logger.warn("StreamSession", "Cannot capture photo - not streaming", mapOf("state" to currentState))
-            return null
+            throw Exception("Cannot capture photo - state is '$currentState', expected 'streaming'")
         }
 
         logger.info("StreamSession", "Capturing photo")
-        val result = session.capturePhoto() ?: run {
-            logger.warn("StreamSession", "capturePhoto returned null")
-            return null
-        }
+        val result = session.capturePhoto()
+            ?: throw Exception("capturePhoto returned null")
 
-        var photoResult: Map<String, Any>? = null
-
-        result.onSuccess { photoData ->
-            photoResult = handlePhotoCapture(context, photoData)
-        }
-        result.onFailure { error ->
+        val photoData = result.getOrElse { error ->
             logger.error("StreamSession", "Photo capture failed", mapOf("error" to error.toString()))
+            throw Exception("Photo capture failed: ${error.message}", error)
         }
 
-        return photoResult
+        return handlePhotoCapture(context, photoData)
+            ?: throw Exception("Failed to process captured photo data")
     }
 
     // MARK: - Frame Handling
@@ -190,15 +186,18 @@ object StreamSessionManager {
 
     private fun handleStateChange(state: StreamSessionState) {
         val mapped = mapStreamState(state)
+        val previousState = currentState
         logger.info("StreamSession", "State changed", mapOf(
-            "from" to currentState,
+            "from" to previousState,
             "to" to mapped
         ))
 
         currentState = mapped
         emitEvent("onStreamStateChange", mapOf("state" to mapped))
 
-        if (state == StreamSessionState.STOPPED || state == StreamSessionState.CLOSED) {
+        // Only auto-stop if transitioning from an active state (not the initial emission)
+        if ((state == StreamSessionState.STOPPED || state == StreamSessionState.CLOSED) &&
+            previousState != "stopped") {
             stopStream()
         }
     }

@@ -160,31 +160,46 @@ object WearablesManager {
         logger.debug("Manager", "Checking permission status", mapOf("permission" to permission.toString()))
         val result = Wearables.checkPermissionStatus(permission)
         val status = result.getOrNull()
-        return if (status != null) mapPermissionStatus(status) else "denied"
+        val mapped = if (status != null) mapPermissionStatus(status) else "denied"
+        logger.debug("Manager", "Permission status result", mapOf(
+            "permission" to permission.toString(),
+            "status" to mapped,
+            "rawResult" to result.toString()
+        ))
+        return mapped
     }
 
-    fun requestPermission(activity: Activity, permission: Permission, callback: (String) -> Unit) {
+    suspend fun requestPermission(activity: Activity, permission: Permission): String {
         if (!isConfigured) {
             throw IllegalStateException("Wearables SDK has not been configured. Call configure() first.")
         }
         logger.info("Manager", "Requesting permission", mapOf("permission" to permission.toString()))
 
-        // Use RequestPermissionContract to create the intent
         val contract = Wearables.RequestPermissionContract()
         val intent = contract.createIntent(activity, permission)
         activity.startActivity(intent)
 
-        // After launching, check status asynchronously
-        scope?.launch {
-            kotlinx.coroutines.delay(2000)
-            val newStatus = checkPermissionStatus(permission)
-            val permName = if (permission == Permission.CAMERA) "camera" else "unknown"
-            emitEvent("onPermissionStatusChange", mapOf(
-                "permission" to permName,
-                "status" to newStatus
-            ))
-            callback(newStatus)
+        val permName = if (permission == Permission.CAMERA) "camera" else "unknown"
+
+        // Poll for permission status change after the user completes the flow
+        repeat(15) {
+            kotlinx.coroutines.delay(1000)
+            val status = checkPermissionStatus(permission)
+            if (status == "granted") {
+                emitEvent("onPermissionStatusChange", mapOf(
+                    "permission" to permName,
+                    "status" to status
+                ))
+                return status
+            }
         }
+
+        val finalStatus = checkPermissionStatus(permission)
+        emitEvent("onPermissionStatusChange", mapOf(
+            "permission" to permName,
+            "status" to finalStatus
+        ))
+        return finalStatus
     }
 
     // MARK: - Devices

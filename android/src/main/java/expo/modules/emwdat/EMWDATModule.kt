@@ -136,14 +136,12 @@ class EMWDATModule : Module() {
             if (permission != "camera") throw Exception("Unknown permission: $permission")
             val activity = appContext.currentActivity
                 ?: throw Exception("Current activity not available")
-            // Launch permission request and return current status
-            // The actual result comes back via the onPermissionStatusChange event
-            var resultStatus = "denied"
-            WearablesManager.requestPermission(
-                activity,
-                com.meta.wearable.dat.core.types.Permission.CAMERA
-            ) { status -> resultStatus = status }
-            resultStatus
+            runBlocking {
+                WearablesManager.requestPermission(
+                    activity,
+                    com.meta.wearable.dat.core.types.Permission.CAMERA
+                )
+            }
         }
 
         // MARK: - Devices
@@ -180,7 +178,6 @@ class EMWDATModule : Module() {
                 ?: throw Exception("Application context not available")
             runBlocking {
                 StreamSessionManager.capturePhoto(context)
-                    ?: throw Exception("Failed to capture photo - stream may not be active")
             }
         }
 
