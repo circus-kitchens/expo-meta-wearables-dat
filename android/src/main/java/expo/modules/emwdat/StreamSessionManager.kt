@@ -16,6 +16,8 @@ import com.meta.wearable.dat.camera.types.VideoFrame
 import com.meta.wearable.dat.camera.types.VideoQuality
 import com.meta.wearable.dat.core.Wearables
 import com.meta.wearable.dat.core.selectors.AutoDeviceSelector
+import com.meta.wearable.dat.core.selectors.SpecificDeviceSelector
+import com.meta.wearable.dat.core.types.DeviceIdentifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -31,6 +33,7 @@ object StreamSessionManager {
     private var streamSession: StreamSession? = null
     private var videoJob: Job? = null
     private var stateJob: Job? = null
+    private var streamStartTimeoutJob: Job? = null
     private var scope: CoroutineScope? = null
 
     var currentState: String = "stopped"
@@ -72,11 +75,16 @@ object StreamSessionManager {
         val frameRate = (config["frameRate"] as? Number)?.toInt() ?: 15
         val streamConfig = StreamConfiguration(videoQuality, frameRate)
 
-        val deviceSelector = AutoDeviceSelector()
+        val deviceSelector = if (deviceId != null) {
+            SpecificDeviceSelector(DeviceIdentifier(deviceId))
+        } else {
+            AutoDeviceSelector()
+        }
 
         logger.info("StreamSession", "Starting stream", mapOf(
             "quality" to videoQuality.toString(),
-            "frameRate" to frameRate
+            "frameRate" to frameRate,
+            "deviceId" to (deviceId ?: "auto")
         ))
 
         val session = Wearables.startStreamSession(context, deviceSelector, streamConfig)
@@ -96,6 +104,21 @@ object StreamSessionManager {
             }
         }
 
+        // Timeout: if state doesn't reach STREAMING within 10s, emit error
+        streamStartTimeoutJob = scope?.launch {
+            kotlinx.coroutines.delay(10_000)
+            if (currentState == "started" || currentState == "starting") {
+                val errorMsg = "Stream failed to start. State stuck at '$currentState'. " +
+                    "If using a mock device, ensure the video feed is HEVC (H.265) encoded. " +
+                    "The SDK requires video/hevc codec — H.264 (AVC) videos will be rejected."
+                logger.error("StreamSession", errorMsg)
+                emitEvent("onStreamError", mapOf(
+                    "type" to "timeout",
+                    "message" to errorMsg
+                ))
+            }
+        }
+
         logger.info("StreamSession", "Stream session started")
     }
 
@@ -103,8 +126,10 @@ object StreamSessionManager {
         logger.info("StreamSession", "Stopping stream")
         videoJob?.cancel()
         stateJob?.cancel()
+        streamStartTimeoutJob?.cancel()
         videoJob = null
         stateJob = null
+        streamStartTimeoutJob = null
         streamSession?.close()
         streamSession = null
         val previousState = currentState
@@ -194,6 +219,12 @@ object StreamSessionManager {
 
         currentState = mapped
         emitEvent("onStreamStateChange", mapOf("state" to mapped))
+
+        // Cancel timeout once streaming is active
+        if (state == StreamSessionState.STREAMING) {
+            streamStartTimeoutJob?.cancel()
+            streamStartTimeoutJob = null
+        }
 
         // Only auto-stop if transitioning from an active state (not the initial emission)
         if ((state == StreamSessionState.STOPPED || state == StreamSessionState.CLOSED) &&
