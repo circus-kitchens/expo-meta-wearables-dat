@@ -1,3 +1,9 @@
+# [0.1.0](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.9...v0.1.0) (2026-03-03)
+
+### Features
+
+- android support ([1a3960e](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/1a3960ed5d6c5c4612995110911a22c6c2c3afe2))
+
 ## [0.0.9](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.8...v0.0.9) (2026-02-17)
 
 ### Bug Fixes
