@@ -1,3 +1,9 @@
+## [0.1.1](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.1.0...v0.1.1) (2026-03-05)
+
+### Bug Fixes
+
+- update bluetooth permissions ([744de32](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/744de32a46ac938ffbd74d126c8392789c3eff38))
+
 # [0.1.0](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.0.9...v0.1.0) (2026-03-03)
 
 ### Features
