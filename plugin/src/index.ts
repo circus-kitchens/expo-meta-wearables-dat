@@ -147,9 +147,21 @@ done
   // See: https://github.com/facebook/meta-wearables-dat-android/issues/24
   //      https://github.com/facebook/meta-wearables-dat-android/discussions/25
 
-  // Add meta-data and deep link intent-filter to AndroidManifest
+  // Add Bluetooth permissions, meta-data, and deep link intent-filter to AndroidManifest
   config = withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
+
+    // Add Bluetooth permissions required by the Meta Wearables DAT SDK
+    const permissions = manifest.manifest["uses-permission"] ?? [];
+    const addPermission = (name: string) => {
+      if (!permissions.some((p: any) => p.$?.["android:name"] === name)) {
+        permissions.push({ $: { "android:name": name } });
+      }
+    };
+    addPermission("android.permission.BLUETOOTH");
+    addPermission("android.permission.BLUETOOTH_CONNECT");
+    manifest.manifest["uses-permission"] = permissions;
+
     const application = manifest.manifest.application?.[0];
     if (!application) return config;
 

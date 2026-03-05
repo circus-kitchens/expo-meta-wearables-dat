@@ -90,7 +90,7 @@ Add the plugin to your `app.json` / `app.config.js`:
 
 | Prop                        | Required | Description                                                                                                   |
 | --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
-| `urlScheme`                 | Yes      | URL scheme for Meta AI app callback (e.g. `"myapp"`)                                                          |
+| `urlScheme`                 | Yes      | URL scheme for Meta AI app callback (e.g. `"myapp"`). Do not include `://` — only the scheme name             |
 | `metaAppId`                 | No       | Meta App ID from [Wearables Developer Center](https://wearables.developer.meta.com/). Omit for Developer Mode |
 | `clientToken`               | No       | Client Token from Wearables Developer Center                                                                  |
 | `bluetoothUsageDescription` | No       | Custom Bluetooth usage description (iOS only)                                                                 |
@@ -104,9 +104,11 @@ The plugin automatically configures:
 - `UISupportedExternalAccessoryProtocols` (`com.meta.ar.wearable`)
 - `UIBackgroundModes` (`bluetooth-peripheral`, `external-accessory`)
 - `NSBluetoothAlwaysUsageDescription`
-- `MWDAT` configuration dictionary
+- `MWDAT` configuration dictionary (including `TeamID` auto-resolved from Xcode's `DEVELOPMENT_TEAM` signing setting)
 - iOS deployment target to 16.0
 - Embeds MWDATCamera & MWDATCore dynamic frameworks
+
+> **Note:** The native Meta Wearables DAT iOS SDK states iOS 17.0+ as its minimum. The podspec targets 16.0 and builds successfully, but runtime behavior on iOS 16 devices is unverified. We recommend iOS 17.0+ for production use.
 
 ### Android
 
@@ -126,11 +128,18 @@ After adding the plugin, generate the native projects:
 npx expo prebuild
 ```
 
+If you change plugin configuration later, regenerate with `--clean` to ensure native projects are fully updated:
+
+```bash
+npx expo prebuild --clean
+```
+
 ### Prerequisites
 
 - The user must have the **Meta AI** app installed and paired with their glasses
 - A physical device is required (no simulator/emulator support)
-- **Android**: minSdk 31 (Android 12+)
+- **iOS**: Xcode 16+ with a valid signing team
+- **Android**: Android Studio with SDK installed, minSdk 31 (Android 12+)
 
 ## Quick Start
 
