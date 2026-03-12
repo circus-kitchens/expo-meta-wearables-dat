@@ -1,3 +1,20 @@
+# [1.0.0](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.1.1...v1.0.0) (2026-03-12)
+
+### Features
+
+- migrate to Meta Wearables DAT SDK v0.5 ([42ee3a9](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/42ee3a9c5a1bb442279761c85ac92f6e1a8ad43d))
+
+### BREAKING CHANGES
+
+- Remove HingeState and DeviceState types (removed in SDK v0.5).
+
+* iOS: bump SPM dependency to 0.5.0, parse hvc1 codec, handle thermalCritical error
+* Android: replace local AARs with Maven deps, use LinkState enum instead of boolean
+  available, update capturePhoto to DatResult<PhotoData, CaptureError>
+* TS: add hvc1 VideoCodec, thermalCritical StreamSessionError, CaptureError type
+* Plugin: add withSettingsGradle for GitHub Packages Maven repo, add githubToken prop
+* Tests: add v0.5 type tests, hvc1 codec, thermalCritical, connecting link state
+
 ## [0.1.1](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.1.0...v0.1.1) (2026-03-05)
 
 ### Bug Fixes
