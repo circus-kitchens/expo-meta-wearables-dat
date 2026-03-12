@@ -6,6 +6,7 @@ import com.meta.wearable.dat.core.Wearables
 import com.meta.wearable.dat.core.types.DeviceCompatibility
 import com.meta.wearable.dat.core.types.DeviceIdentifier
 import com.meta.wearable.dat.core.types.DeviceType
+import com.meta.wearable.dat.core.types.LinkState
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
 import com.meta.wearable.dat.core.types.RegistrationState
@@ -37,7 +38,7 @@ object WearablesManager {
     private var currentDevices: Set<DeviceIdentifier> = emptySet()
     private var deviceNames: MutableMap<DeviceIdentifier, String> = mutableMapOf()
     private var deviceCompatibilities: MutableMap<DeviceIdentifier, DeviceCompatibility> = mutableMapOf()
-    private var deviceAvailable: MutableMap<DeviceIdentifier, Boolean> = mutableMapOf()
+    private var deviceLinkStates: MutableMap<DeviceIdentifier, LinkState> = mutableMapOf()
     private var deviceTypes: MutableMap<DeviceIdentifier, DeviceType> = mutableMapOf()
 
     fun setEventEmitter(emitter: EventEmitter) {
@@ -107,7 +108,7 @@ object WearablesManager {
             deviceSessionStateJobs.remove(deviceId)
             deviceNames.remove(deviceId)
             deviceCompatibilities.remove(deviceId)
-            deviceAvailable.remove(deviceId)
+            deviceLinkStates.remove(deviceId)
             deviceTypes.remove(deviceId)
             logger.debug("Manager", "Removed device listeners", mapOf("deviceId" to deviceId.toString()))
         }
@@ -122,14 +123,13 @@ object WearablesManager {
                         deviceNames[deviceId] = metadata.name
                         deviceCompatibilities[deviceId] = metadata.compatibility
 
-                        // Track link state (available)
-                        val previousAvailable = deviceAvailable[deviceId]
-                        deviceAvailable[deviceId] = metadata.available
-                        if (previousAvailable != null && previousAvailable != metadata.available) {
-                            val linkState = if (metadata.available) "connected" else "disconnected"
+                        // Track link state
+                        val previousLinkState = deviceLinkStates[deviceId]
+                        deviceLinkStates[deviceId] = metadata.linkState
+                        if (previousLinkState != null && previousLinkState != metadata.linkState) {
                             emitEvent("onLinkStateChange", mapOf(
                                 "deviceId" to deviceId.toString(),
-                                "linkState" to linkState
+                                "linkState" to mapLinkState(metadata.linkState)
                             ))
                         }
 
@@ -262,21 +262,22 @@ object WearablesManager {
     // MARK: - Serialization
 
     private fun serializeDevice(id: DeviceIdentifier): Map<String, Any> {
-        val linkState = when (deviceAvailable[id]) {
-            true -> "connected"
-            false -> "disconnected"
-            null -> "connected" // Default before first metadata arrives
-        }
         return mapOf(
             "identifier" to id.toString(),
             "name" to (deviceNames[id] ?: "Unknown"),
-            "linkState" to linkState,
+            "linkState" to mapLinkState(deviceLinkStates[id] ?: LinkState.DISCONNECTED),
             "deviceType" to mapDeviceType(deviceTypes[id]),
             "compatibility" to mapCompatibility(deviceCompatibilities[id] ?: DeviceCompatibility.UNDEFINED)
         )
     }
 
     // MARK: - Mapping Helpers
+
+    private fun mapLinkState(state: LinkState): String = when (state) {
+        LinkState.CONNECTED -> "connected"
+        LinkState.CONNECTING -> "connecting"
+        LinkState.DISCONNECTED -> "disconnected"
+    }
 
     private fun mapRegistrationState(state: RegistrationState): String = when (state) {
         is RegistrationState.Unavailable -> "unavailable"
@@ -336,7 +337,7 @@ object WearablesManager {
         deviceSessionStateJobs.clear()
         deviceNames.clear()
         deviceCompatibilities.clear()
-        deviceAvailable.clear()
+        deviceLinkStates.clear()
         deviceTypes.clear()
         currentDevices = emptySet()
         currentRegistrationState = "unavailable"

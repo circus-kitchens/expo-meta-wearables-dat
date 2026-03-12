@@ -44,15 +44,6 @@ export type DeviceType =
   | "metaRayBanDisplay"
   | "unknown";
 
-/** Forward declaration — SDK 0.4 has no public publisher for hinge state yet. */
-export type HingeState = "open" | "closed";
-
-/** Forward declaration — SDK 0.4 has no public publisher for device state yet. */
-export interface DeviceState {
-  batteryLevel: number;
-  hingeState: HingeState;
-}
-
 export interface Device {
   identifier: DeviceIdentifier;
   name: string;
@@ -67,7 +58,7 @@ export interface Device {
 
 export type StreamingResolution = "high" | "medium" | "low";
 
-export type VideoCodec = "raw";
+export type VideoCodec = "raw" | "hvc1";
 
 export interface StreamSessionConfig {
   videoCodec: VideoCodec;
@@ -162,9 +153,16 @@ export type StreamSessionError =
   | { type: "videoStreamingError" }
   | { type: "audioStreamingError" }
   | { type: "permissionDenied" }
-  | { type: "hingesClosed" };
+  | { type: "hingesClosed" }
+  | { type: "thermalCritical" };
 
 export type StreamSessionErrorCode = StreamSessionError["type"];
+
+export type CaptureError =
+  | "deviceDisconnected"
+  | "notStreaming"
+  | "captureInProgress"
+  | "captureFailed";
 
 export type DecoderError =
   | { type: "unexpected" }
@@ -280,4 +278,6 @@ export interface EMWDATPluginProps {
   clientToken?: string;
   /** Custom NSBluetoothAlwaysUsageDescription */
   bluetoothUsageDescription?: string;
+  /** GitHub token for accessing Meta Wearables Maven packages. Falls back to GITHUB_TOKEN env var. */
+  githubToken?: string;
 }

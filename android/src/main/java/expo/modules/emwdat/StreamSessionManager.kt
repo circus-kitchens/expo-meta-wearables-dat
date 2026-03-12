@@ -9,6 +9,7 @@ import android.graphics.YuvImage
 import androidx.exifinterface.media.ExifInterface
 import com.meta.wearable.dat.camera.StreamSession
 import com.meta.wearable.dat.camera.startStreamSession
+import com.meta.wearable.dat.camera.types.CaptureError
 import com.meta.wearable.dat.camera.types.PhotoData
 import com.meta.wearable.dat.camera.types.StreamConfiguration
 import com.meta.wearable.dat.camera.types.StreamSessionState
@@ -154,12 +155,21 @@ object StreamSessionManager {
         val result = session.capturePhoto()
             ?: throw Exception("capturePhoto returned null")
 
-        val photoData = result.getOrElse { error ->
-            logger.error("StreamSession", "Photo capture failed", mapOf("error" to error.toString()))
-            throw Exception("Photo capture failed: ${error.message}", error)
-        }
-
-        handlePhotoCapture(context, photoData, format)
+        result.fold(
+            onSuccess = { photoData ->
+                handlePhotoCapture(context, photoData, format)
+            },
+            onFailure = { error ->
+                val msg = when (error) {
+                    is CaptureError.DeviceDisconnected -> "Device disconnected"
+                    is CaptureError.NotStreaming -> "Not streaming"
+                    is CaptureError.CaptureInProgress -> "Capture already in progress"
+                    is CaptureError.CaptureFailed -> "Capture failed"
+                }
+                logger.error("StreamSession", "Photo capture failed", mapOf("error" to msg))
+                throw Exception("Photo capture failed: $msg")
+            }
+        )
     }
 
     // MARK: - Frame Handling

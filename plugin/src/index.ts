@@ -3,6 +3,7 @@ import {
   withAndroidManifest,
   withInfoPlist,
   withPodfileProperties,
+  withSettingsGradle,
   withXcodeProject,
 } from "expo/config-plugins";
 
@@ -15,6 +16,8 @@ type EMWDATPluginProps = {
   clientToken?: string;
   /** Custom NSBluetoothAlwaysUsageDescription text */
   bluetoothUsageDescription?: string;
+  /** GitHub token for accessing Meta Wearables Maven packages. Falls back to GITHUB_TOKEN env var. */
+  githubToken?: string;
 };
 
 function addUniqueStringToArray(plist: Record<string, any>, key: string, value: string): void {
@@ -142,10 +145,36 @@ done
   // Android Configuration
   // =========================================================================
 
-  // TODO(v0.5): Re-enable GitHub Packages maven repo once Meta fixes the fat AAR
-  // bundling issue. SDK deps will move from local AARs back to Maven coordinates.
-  // See: https://github.com/facebook/meta-wearables-dat-android/issues/24
-  //      https://github.com/facebook/meta-wearables-dat-android/discussions/25
+  // Add GitHub Packages Maven repository for Meta Wearables DAT SDK
+  config = withSettingsGradle(config, (config) => {
+    const githubToken = props.githubToken ?? "";
+    const mavenBlock = `
+        maven {
+            url = uri("https://maven.pkg.github.com/facebook/meta-wearables-dat-android")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: "${githubToken ? "" : ""}"
+                password = System.getenv("GITHUB_TOKEN") ?: "${githubToken}"
+            }
+        }`;
+
+    // Inject into dependencyResolutionManagement.repositories block
+    if (config.modResults.contents.includes("dependencyResolutionManagement")) {
+      config.modResults.contents = config.modResults.contents.replace(
+        /(dependencyResolutionManagement\s*\{[^}]*repositories\s*\{)/,
+        `$1${mavenBlock}`
+      );
+    } else {
+      // Append a full dependencyResolutionManagement block
+      config.modResults.contents += `
+dependencyResolutionManagement {
+    repositories {${mavenBlock}
+    }
+}
+`;
+    }
+
+    return config;
+  });
 
   // Add Bluetooth permissions, meta-data, and deep link intent-filter to AndroidManifest
   config = withAndroidManifest(config, (config) => {

@@ -73,4 +73,14 @@ describe("EMWDATModule wrappers", () => {
     await capturePhoto("heic");
     expect(native.capturePhoto).toHaveBeenCalledWith("heic");
   });
+
+  it("startStream passes hvc1 videoCodec to native", async () => {
+    await startStream({ videoCodec: "hvc1" });
+    expect(native.startStream).toHaveBeenCalledWith({ videoCodec: "hvc1" });
+  });
+
+  it("startStream passes config with resolution 'high' for 720p", async () => {
+    await startStream({ resolution: "high", frameRate: 30 });
+    expect(native.startStream).toHaveBeenCalledWith({ resolution: "high", frameRate: 30 });
+  });
 });

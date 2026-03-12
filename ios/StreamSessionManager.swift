@@ -308,6 +308,8 @@ public final class StreamSessionManager {
             return ["type": "audioStreamingError"]
         case .hingesClosed:
             return ["type": "hingesClosed"]
+        case .thermalCritical:
+            return ["type": "thermalCritical"]
         @unknown default:
             return ["type": "internalError"]
         }
@@ -335,8 +337,12 @@ public final class StreamSessionManager {
 extension StreamSessionManager {
     /// Parse configuration from JavaScript object
     nonisolated public static func parseConfig(from dict: [String: Any]) -> StreamSessionConfig {
-        // SDK only supports raw video codec
-        let videoCodec: VideoCodec = .raw
+        let videoCodec: VideoCodec
+        if let codecStr = dict["videoCodec"] as? String, codecStr == "hvc1" {
+            videoCodec = .hvc1
+        } else {
+            videoCodec = .raw
+        }
 
         let resolution: StreamingResolution
         if let resStr = dict["resolution"] as? String {

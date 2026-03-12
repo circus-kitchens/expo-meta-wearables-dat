@@ -419,6 +419,24 @@ describe("events", () => {
     expect(m.stopStream).toHaveBeenCalled();
   });
 
+  it("onStreamError handles thermalCritical error", async () => {
+    const onStreamError = jest.fn();
+    const { result } = renderHook(() => useMetaWearables({ autoConfig: false, onStreamError }));
+    const listeners = getListeners();
+
+    await act(async () => {
+      listeners.onStreamStateChange({ state: "streaming" });
+    });
+
+    await act(async () => {
+      listeners.onStreamError({ type: "thermalCritical" });
+    });
+
+    expect(result.current.lastError).toEqual({ type: "thermalCritical" });
+    expect(onStreamError).toHaveBeenCalledWith({ type: "thermalCritical" });
+    expect(m.stopStream).toHaveBeenCalled();
+  });
+
   it("onStreamError does NOT auto-stop if already stopped", async () => {
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
     const listeners = getListeners();
@@ -429,6 +447,18 @@ describe("events", () => {
 
     expect(result.current.lastError).toEqual({ type: "timeout" });
     expect(m.stopStream).not.toHaveBeenCalled();
+  });
+
+  it("onLinkStateChange handles 'connecting' state", async () => {
+    const onLinkStateChange = jest.fn();
+    renderHook(() => useMetaWearables({ autoConfig: false, onLinkStateChange }));
+    const listeners = getListeners();
+
+    await act(async () => {
+      listeners.onLinkStateChange({ deviceId: "d1", linkState: "connecting" });
+    });
+
+    expect(onLinkStateChange).toHaveBeenCalledWith("d1", "connecting");
   });
 
   it("onPermissionStatusChange updates camera permission", async () => {
