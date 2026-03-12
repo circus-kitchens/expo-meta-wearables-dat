@@ -1,9 +1,10 @@
 import {
   type ConfigPlugin,
   withAndroidManifest,
+  withGradleProperties,
   withInfoPlist,
   withPodfileProperties,
-  withSettingsGradle,
+  withProjectBuildGradle,
   withXcodeProject,
 } from "expo/config-plugins";
 
@@ -146,31 +147,48 @@ done
   // =========================================================================
 
   // Add GitHub Packages Maven repository for Meta Wearables DAT SDK
-  config = withSettingsGradle(config, (config) => {
+  config = withProjectBuildGradle(config, (config) => {
     const githubToken = props.githubToken ?? "";
     const mavenBlock = `
         maven {
             url = uri("https://maven.pkg.github.com/facebook/meta-wearables-dat-android")
             credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: "${githubToken ? "" : ""}"
+                username = System.getenv("GITHUB_ACTOR") ?: ""
                 password = System.getenv("GITHUB_TOKEN") ?: "${githubToken}"
             }
         }`;
 
-    // Inject into dependencyResolutionManagement.repositories block
-    if (config.modResults.contents.includes("dependencyResolutionManagement")) {
-      config.modResults.contents = config.modResults.contents.replace(
-        /(dependencyResolutionManagement\s*\{[^}]*repositories\s*\{)/,
+    const contents = config.modResults.contents;
+
+    // Inject into allprojects.repositories block (standard React Native layout)
+    if (contents.includes("allprojects")) {
+      config.modResults.contents = contents.replace(
+        /(allprojects\s*\{[\s\S]*?repositories\s*\{)/,
         `$1${mavenBlock}`
       );
-    } else {
-      // Append a full dependencyResolutionManagement block
-      config.modResults.contents += `
-dependencyResolutionManagement {
-    repositories {${mavenBlock}
     }
-}
-`;
+
+    return config;
+  });
+
+  // Ensure minSdkVersion meets Meta Wearables DAT SDK requirement (31).
+  // Only raises — never lowers an already-higher value.
+  config = withGradleProperties(config, (config) => {
+    const MIN_SDK_REQUIRED = 31;
+    const existing = config.modResults.find(
+      (p) => p.type === "property" && p.key === "android.minSdkVersion"
+    );
+    const current = existing ? parseInt((existing as { value: string }).value, 10) : 0;
+
+    if (current < MIN_SDK_REQUIRED) {
+      config.modResults = config.modResults.filter(
+        (p) => !(p.type === "property" && p.key === "android.minSdkVersion")
+      );
+      config.modResults.push({
+        type: "property",
+        key: "android.minSdkVersion",
+        value: String(MIN_SDK_REQUIRED),
+      });
     }
 
     return config;

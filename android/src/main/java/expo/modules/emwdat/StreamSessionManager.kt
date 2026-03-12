@@ -163,7 +163,7 @@ object StreamSessionManager {
             onSuccess = { photoData ->
                 handlePhotoCapture(context, photoData, format)
             },
-            onFailure = { error ->
+            onFailure = { error, _ ->
                 val msg = when (error) {
                     is CaptureError.DeviceDisconnected -> "Device disconnected"
                     is CaptureError.NotStreaming -> "Not streaming"
