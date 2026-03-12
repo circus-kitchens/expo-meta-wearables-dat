@@ -1,3 +1,13 @@
+# [1.1.0](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v1.0.1...v1.1.0) (2026-03-12)
+
+### Bug Fixes
+
+- Android config plugin and SDK v0.5 compatibility ([293fd44](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/293fd4463e6c692423337e71cd6bfd2ef793a4e0))
+
+### Features
+
+- add fullscreen streaming mode with frame callback ownership ([81f7963](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/81f796308912116e5f702fa9195f509ac217ca6f))
+
 ## [1.0.1](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v1.0.0...v1.0.1) (2026-03-12)
 
 ### Bug Fixes
