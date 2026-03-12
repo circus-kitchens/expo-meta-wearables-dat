@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v1.0.0...v1.0.1) (2026-03-12)
+
+### Bug Fixes
+
+- add HEVC decoder for iOS streaming and remove audioStreamingError ([0343b0c](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/0343b0c98e959a7f42185dd984fdeb485f0819d2))
+
 # [1.0.0](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v0.1.1...v1.0.0) (2026-03-12)
 
 ### Features
