@@ -151,7 +151,6 @@ export type StreamSessionError =
   | { type: "deviceNotConnected"; deviceId: DeviceIdentifier }
   | { type: "timeout" }
   | { type: "videoStreamingError" }
-  | { type: "audioStreamingError" }
   | { type: "permissionDenied" }
   | { type: "hingesClosed" }
   | { type: "thermalCritical" };

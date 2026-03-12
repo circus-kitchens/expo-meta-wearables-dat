@@ -24,6 +24,7 @@ public final class StreamSessionManager {
     private(set) var currentState: StreamSessionState = .stopped
     private(set) var currentConfig: StreamSessionConfig?
     private var currentDeviceId: String?
+    private var hevcDecoder: HEVCDecoder?
 
     // MARK: - Callbacks
 
@@ -97,6 +98,14 @@ public final class StreamSessionManager {
             logger.info("StreamSession", "Using specific device", context: ["deviceId": deviceId])
         } else {
             deviceSelector = AutoDeviceSelector(wearables: Wearables.shared)
+        }
+
+        // Create HEVC decoder if needed
+        if config.videoCodec == .hvc1 {
+            hevcDecoder = HEVCDecoder()
+            logger.info("StreamSession", "HEVC decoder created")
+        } else {
+            hevcDecoder = nil
         }
 
         // Create stream session
@@ -185,8 +194,14 @@ public final class StreamSessionManager {
     }
 
     private func handleVideoFrame(_ frame: VideoFrame) {
-        guard let image = frame.makeUIImage() else {
-            logger.warn("StreamSession", "Failed to create UIImage from frame")
+        // Try SDK's built-in conversion first (works for raw codec).
+        // For HEVC, makeUIImage() returns nil — fall back to hardware decoder.
+        let image: UIImage
+        if let direct = frame.makeUIImage() {
+            image = direct
+        } else if let decoded = hevcDecoder?.decode(frame.sampleBuffer) {
+            image = decoded
+        } else {
             return
         }
 
@@ -261,6 +276,8 @@ public final class StreamSessionManager {
         currentConfig = nil
         currentDeviceId = nil
         currentState = .stopped
+        hevcDecoder?.invalidate()
+        hevcDecoder = nil
         logger.debug("StreamSession", "Session destroyed")
     }
 
@@ -304,8 +321,6 @@ public final class StreamSessionManager {
             return ["type": "internalError"]
         case .videoStreamingError:
             return ["type": "videoStreamingError"]
-        case .audioStreamingError:
-            return ["type": "audioStreamingError"]
         case .hingesClosed:
             return ["type": "hingesClosed"]
         case .thermalCritical:

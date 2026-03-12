@@ -322,7 +322,7 @@ Key types exported from the package:
 - `Device` — `{ identifier, name, linkState, deviceType, compatibility }`
 - `StreamSessionConfig` — `{ videoCodec, resolution, frameRate, deviceId? }`
 - `StreamSessionState` — `"stopped"` \| `"waitingForDevice"` \| `"starting"` \| `"streaming"` \| `"paused"` \| `"stopping"`
-- `StreamSessionError` — Discriminated union: `internalError` \| `deviceNotFound` \| `deviceNotConnected` \| `timeout` \| `videoStreamingError` \| `audioStreamingError` \| `permissionDenied` \| `hingesClosed` \| `thermalCritical`
+- `StreamSessionError` — Discriminated union: `internalError` \| `deviceNotFound` \| `deviceNotConnected` \| `timeout` \| `videoStreamingError` \| `permissionDenied` \| `hingesClosed` \| `thermalCritical`
 - `PhotoData` — `{ filePath, format, timestamp, width?, height?, base64? }`
 - `PhotoCaptureFormat` — `"jpeg"` \| `"heic"`
 - `LinkState` — `"connected"` \| `"disconnected"` \| `"connecting"`
