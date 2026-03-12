@@ -94,6 +94,7 @@ Add the plugin to your `app.json` / `app.config.js`:
 | `metaAppId`                 | No       | Meta App ID from [Wearables Developer Center](https://wearables.developer.meta.com/). Omit for Developer Mode |
 | `clientToken`               | No       | Client Token from Wearables Developer Center                                                                  |
 | `bluetoothUsageDescription` | No       | Custom Bluetooth usage description (iOS only)                                                                 |
+| `githubToken`               | No       | GitHub token for Maven packages (Android). Falls back to `GITHUB_TOKEN` env var                               |
 
 ### iOS
 
@@ -118,7 +119,10 @@ The plugin automatically configures:
 - Deep link `<intent-filter>` on MainActivity with the configured URL scheme
 - Bluetooth permissions (`BLUETOOTH`, `BLUETOOTH_CONNECT`)
 
-> **Note:** The Android SDK AARs (v0.4.0) are bundled locally in `android/libs/` due to a [fat AAR conflict](https://github.com/facebook/meta-wearables-dat-android/issues/24) with React Native. This will be resolved in SDK v0.5.
+The Android SDK dependencies are resolved via Maven from [GitHub Packages](https://github.com/facebook/meta-wearables-dat-android). The config plugin injects the Maven repository automatically. You need either:
+
+- `GITHUB_ACTOR` and `GITHUB_TOKEN` environment variables set, **or**
+- The `githubToken` plugin prop configured
 
 ### Prebuild
 
@@ -318,7 +322,7 @@ Key types exported from the package:
 - `Device` — `{ identifier, name, linkState, deviceType, compatibility }`
 - `StreamSessionConfig` — `{ videoCodec, resolution, frameRate, deviceId? }`
 - `StreamSessionState` — `"stopped"` \| `"waitingForDevice"` \| `"starting"` \| `"streaming"` \| `"paused"` \| `"stopping"`
-- `StreamSessionError` — Discriminated union: `internalError` \| `deviceNotFound` \| `deviceNotConnected` \| `timeout` \| `videoStreamingError` \| `audioStreamingError` \| `permissionDenied` \| `hingesClosed`
+- `StreamSessionError` — Discriminated union: `internalError` \| `deviceNotFound` \| `deviceNotConnected` \| `timeout` \| `videoStreamingError` \| `audioStreamingError` \| `permissionDenied` \| `hingesClosed` \| `thermalCritical`
 - `PhotoData` — `{ filePath, format, timestamp, width?, height?, base64? }`
 - `PhotoCaptureFormat` — `"jpeg"` \| `"heic"`
 - `LinkState` — `"connected"` \| `"disconnected"` \| `"connecting"`
@@ -326,7 +330,8 @@ Key types exported from the package:
 - `DeviceType` — `"rayBanMeta"` \| `"oakleyMetaHSTN"` \| `"oakleyMetaVanguard"` \| `"metaRayBanDisplay"` \| `"unknown"`
 - `SessionState` — `"stopped"` \| `"waitingForDevice"` \| `"running"` \| `"paused"` \| `"unknown"`
 - `StreamingResolution` — `"high"` \| `"medium"` \| `"low"`
-- `VideoCodec` — `"raw"`
+- `VideoCodec` — `"raw"` \| `"hvc1"`
+- `CaptureError` — `"deviceDisconnected"` \| `"notStreaming"` \| `"captureInProgress"` \| `"captureFailed"`
 - `VideoFrameMetadata` — `{ timestamp, width, height }`
 - `StreamViewResizeMode` — `"contain"` \| `"cover"` \| `"stretch"`
 - `EMWDATPluginProps` — Config plugin options
@@ -423,10 +428,6 @@ This wipes `Podfile.properties.json`. Re-run prebuild (the config plugin will re
 
 The mock video feed **must be HEVC (H.265) encoded**. The SDK requests `video/hevc` mime type and rejects H.264 (AVC) videos. Resolution does not matter — only the codec.
 
-### Android: Build fails with duplicate class errors
-
-The Meta SDK v0.4.0 AARs bundle classes that conflict with React Native's copies (fbjni, fbcore). Ensure you're using the local AAR approach via `gradleAarProjects` in `expo-module.config.json`. This is handled automatically by the package.
-
 ## Privacy & Data
 
 - The library **does not store, persist, or log** personally identifiable information
@@ -441,7 +442,6 @@ See [SECURITY.md](./SECURITY.md) for the vulnerability reporting process.
 
 - Background streaming (pending SDK support)
 - New Architecture validation
-- Device state (battery, hinge) publishers (pending SDK support)
 
 ## License
 

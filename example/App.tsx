@@ -5,6 +5,7 @@ import type {
   PhotoData,
   PhotoCaptureFormat,
   StreamingResolution,
+  VideoCodec,
   DeviceIdentifier,
   LogLevel,
 } from "expo-meta-wearables-dat";
@@ -39,6 +40,7 @@ export default function App() {
   const [lastPhoto, setLastPhoto] = useState<PhotoData | null>(null);
   const [resolution, setResolution] = useState<StreamingResolution>("low");
   const [frameRate, setFrameRate] = useState<number>(15);
+  const [videoCodec, setVideoCodec] = useState<VideoCodec>("raw");
   const [photoFormat, setPhotoFormat] = useState<PhotoCaptureFormat>("jpeg");
   const [selectedDeviceId, setSelectedDeviceId] = useState<DeviceIdentifier | null>(null);
   const [logLevel, setLogLevelState] = useState<LogLevel>("debug");
@@ -268,6 +270,7 @@ export default function App() {
             frameDimensions={frameDimensions}
             resolution={resolution}
             frameRate={frameRate}
+            videoCodec={videoCodec}
             photoFormat={photoFormat}
             isConfigured={isConfigured}
             registrationState={registrationState}
@@ -277,6 +280,7 @@ export default function App() {
             onDeviceSelect={setSelectedDeviceId}
             onResolutionChange={setResolution}
             onFrameRateChange={setFrameRate}
+            onVideoCodecChange={setVideoCodec}
             onPhotoFormatChange={setPhotoFormat}
             onStartStream={safe(async () => {
               if (permissionStatus !== "granted") {
@@ -288,7 +292,7 @@ export default function App() {
               await startStream({
                 resolution,
                 frameRate,
-                videoCodec: "raw",
+                videoCodec,
                 ...(selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
               });
             })}

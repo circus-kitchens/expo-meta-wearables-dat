@@ -43,6 +43,11 @@ export const FRAME_RATES = [
   { label: "30", value: "30" },
 ];
 
+export const VIDEO_CODECS = [
+  { label: "Raw", value: "raw" },
+  { label: "HEVC", value: "hvc1" },
+];
+
 export const PHOTO_FORMATS = [
   { label: "JPEG", value: "jpeg" },
   { label: "HEIC", value: "heic" },

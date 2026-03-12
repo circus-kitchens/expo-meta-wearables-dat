@@ -6,11 +6,12 @@ import type {
   PhotoCaptureFormat,
   StreamingResolution,
   StreamSessionState,
+  VideoCodec,
 } from "expo-meta-wearables-dat";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Btn, OptionRow, Row, Section } from "./ui";
-import { FRAME_RATES, PHOTO_FORMATS, RESOLUTIONS } from "./utils";
+import { FRAME_RATES, PHOTO_FORMATS, RESOLUTIONS, VIDEO_CODECS } from "./utils";
 
 export function StreamPreview({
   streamState,
@@ -18,6 +19,7 @@ export function StreamPreview({
   frameDimensions,
   resolution,
   frameRate,
+  videoCodec,
   photoFormat,
   isConfigured,
   registrationState,
@@ -27,6 +29,7 @@ export function StreamPreview({
   onDeviceSelect,
   onResolutionChange,
   onFrameRateChange,
+  onVideoCodecChange,
   onPhotoFormatChange,
   onStartStream,
   onStopStream,
@@ -37,6 +40,7 @@ export function StreamPreview({
   frameDimensions: string;
   resolution: StreamingResolution;
   frameRate: number;
+  videoCodec: VideoCodec;
   photoFormat: PhotoCaptureFormat;
   isConfigured: boolean;
   registrationState: string;
@@ -46,6 +50,7 @@ export function StreamPreview({
   onDeviceSelect: (id: DeviceIdentifier | null) => void;
   onResolutionChange: (v: StreamingResolution) => void;
   onFrameRateChange: (v: number) => void;
+  onVideoCodecChange: (v: VideoCodec) => void;
   onPhotoFormatChange: (v: PhotoCaptureFormat) => void;
   onStartStream: () => void;
   onStopStream: () => void;
@@ -127,6 +132,13 @@ export function StreamPreview({
         options={FRAME_RATES}
         selected={String(frameRate)}
         onSelect={(v) => onFrameRateChange(Number(v))}
+        disabled={streamActive}
+      />
+      <Text style={styles.optionLabel}>Video Codec</Text>
+      <OptionRow
+        options={VIDEO_CODECS}
+        selected={videoCodec}
+        onSelect={(v) => onVideoCodecChange(v as VideoCodec)}
         disabled={streamActive}
       />
       <Row>
