@@ -6,6 +6,7 @@ public class EMWDATStreamView: ExpoView {
     private let logger = EMWDATLogger.shared
     private let imageView = UIImageView()
     private var isActive: Bool = false
+    private let viewId = UUID()
 
     // MARK: - Initialization
 
@@ -39,13 +40,13 @@ public class EMWDATStreamView: ExpoView {
         isActive = active
         Task { @MainActor in
             if active {
-                self.logger.info("StreamView", "Subscribing to frames")
-                StreamSessionManager.shared.setFrameCallback { [weak self] image in
+                self.logger.info("StreamView", "Subscribing to frames", context: ["viewId": self.viewId.uuidString.prefix(8)])
+                StreamSessionManager.shared.setFrameCallback({ [weak self] image in
                     self?.imageView.image = image
-                }
+                }, owner: self.viewId)
             } else {
-                self.logger.info("StreamView", "Unsubscribing from frames")
-                StreamSessionManager.shared.removeFrameCallback()
+                self.logger.info("StreamView", "Unsubscribing from frames", context: ["viewId": self.viewId.uuidString.prefix(8)])
+                StreamSessionManager.shared.removeFrameCallback(owner: self.viewId)
                 self.imageView.image = nil
             }
         }

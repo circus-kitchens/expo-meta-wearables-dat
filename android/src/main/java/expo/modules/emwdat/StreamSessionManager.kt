@@ -44,6 +44,7 @@ object StreamSessionManager {
     // Callbacks
     private var eventEmitter: EventEmitter? = null
     private var frameCallback: FrameCallback? = null
+    private var frameCallbackOwner: Any? = null
 
     fun setEventEmitter(emitter: EventEmitter) {
         this.eventEmitter = emitter
@@ -53,12 +54,15 @@ object StreamSessionManager {
         this.scope = scope
     }
 
-    fun setFrameCallback(callback: FrameCallback) {
+    fun setFrameCallback(callback: FrameCallback, owner: Any) {
         this.frameCallback = callback
+        this.frameCallbackOwner = owner
     }
 
-    fun removeFrameCallback() {
+    fun removeFrameCallback(owner: Any) {
+        if (frameCallbackOwner !== owner) return
         this.frameCallback = null
+        this.frameCallbackOwner = null
     }
 
     // MARK: - Stream Control

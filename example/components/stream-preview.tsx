@@ -8,7 +8,8 @@ import type {
   StreamSessionState,
   VideoCodec,
 } from "expo-meta-wearables-dat";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, Modal, Pressable, StatusBar, StyleSheet, Text, View } from "react-native";
 
 import { Btn, OptionRow, Row, Section } from "./ui";
 import { FRAME_RATES, PHOTO_FORMATS, RESOLUTIONS, VIDEO_CODECS } from "./utils";
@@ -57,6 +58,8 @@ export function StreamPreview({
   onCapturePhoto: () => void;
 }) {
   const streamActive = streamState !== "stopped";
+  const isStreaming = streamState === "streaming";
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   return (
     <Section title="Streaming">
@@ -176,25 +179,57 @@ export function StreamPreview({
       {/* Camera preview */}
       <View style={styles.previewContainer}>
         <EMWDATStreamView
-          isActive={streamState === "streaming"}
+          isActive={isStreaming && !isFullscreen}
           resizeMode="contain"
           style={styles.preview}
         />
-        {streamState === "streaming" && (fps > 0 || frameDimensions) ? (
+        {isStreaming && (fps > 0 || frameDimensions) ? (
           <View style={styles.frameStats}>
             <Text style={styles.frameStatsText}>
               {fps} fps{frameDimensions ? ` | ${frameDimensions}` : ""}
             </Text>
           </View>
         ) : null}
-        {streamState !== "streaming" && (
+        {!isStreaming && (
           <View style={styles.previewOverlay}>
             <Text style={styles.previewText}>
               {streamState === "stopped" ? "Stream not active" : streamState}
             </Text>
           </View>
         )}
+        {isStreaming && (
+          <Pressable style={styles.fullscreenBtn} onPress={() => setIsFullscreen(true)}>
+            <Feather name="maximize" size={16} color="#ffffff" />
+          </Pressable>
+        )}
       </View>
+
+      {/* Fullscreen modal */}
+      <Modal
+        visible={isFullscreen}
+        animationType="fade"
+        supportedOrientations={["portrait", "landscape"]}
+        statusBarTranslucent
+      >
+        <StatusBar hidden={isFullscreen} />
+        <View style={styles.fullscreenContainer}>
+          <EMWDATStreamView
+            isActive={isStreaming && isFullscreen}
+            resizeMode="contain"
+            style={styles.preview}
+          />
+          {fps > 0 || frameDimensions ? (
+            <View style={styles.frameStats}>
+              <Text style={styles.frameStatsText}>
+                {fps} fps{frameDimensions ? ` | ${frameDimensions}` : ""}
+              </Text>
+            </View>
+          ) : null}
+          <Pressable style={styles.fullscreenCloseBtn} onPress={() => setIsFullscreen(false)}>
+            <Feather name="minimize" size={20} color="#ffffff" />
+          </Pressable>
+        </View>
+      </Modal>
     </Section>
   );
 }
@@ -286,5 +321,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Courier",
     fontWeight: "600",
+  },
+  fullscreenBtn: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 4,
+    padding: 6,
+  },
+  fullscreenContainer: {
+    flex: 1,
+    backgroundColor: "#000000",
+  },
+  fullscreenCloseBtn: {
+    position: "absolute",
+    top: 50,
+    right: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 6,
+    padding: 10,
   },
 });

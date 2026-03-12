@@ -30,6 +30,7 @@ public final class StreamSessionManager {
 
     private var eventEmitter: EventEmitter?
     private var frameCallback: FrameCallback?
+    private var frameCallbackOwner: UUID?
 
     private init() {}
 
@@ -41,13 +42,16 @@ public final class StreamSessionManager {
     }
 
     /// Set the frame callback for native view rendering
-    public func setFrameCallback(_ callback: @escaping FrameCallback) {
+    public func setFrameCallback(_ callback: @escaping FrameCallback, owner: UUID) {
         self.frameCallback = callback
+        self.frameCallbackOwner = owner
     }
 
-    /// Remove the frame callback
-    public func removeFrameCallback() {
+    /// Remove the frame callback only if the caller is the current owner
+    public func removeFrameCallback(owner: UUID) {
+        guard frameCallbackOwner == owner else { return }
         self.frameCallback = nil
+        self.frameCallbackOwner = nil
     }
 
     // MARK: - Stream Control

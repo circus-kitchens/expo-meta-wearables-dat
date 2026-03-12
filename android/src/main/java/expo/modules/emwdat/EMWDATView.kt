@@ -28,9 +28,9 @@ class EMWDATView(context: Context, appContext: AppContext) : ExpoView(context, a
         if (active == isActive) return
         isActive = active
         if (active) {
-            StreamSessionManager.setFrameCallback(frameCallback)
+            StreamSessionManager.setFrameCallback(frameCallback, this)
         } else {
-            StreamSessionManager.removeFrameCallback()
+            StreamSessionManager.removeFrameCallback(this)
             imageView.setImageBitmap(null)
         }
     }
