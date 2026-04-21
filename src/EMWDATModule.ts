@@ -2,15 +2,16 @@ import { NativeModule, requireNativeModule } from "expo";
 import { Platform } from "react-native";
 
 import type {
+  CameraFacing,
   Device,
   EMWDATModuleEvents,
   LogLevel,
+  MockDeviceKitConfig,
   Permission,
   PermissionStatus,
   PhotoCaptureFormat,
   RegistrationState,
   StreamSessionConfig,
-  StreamSessionState,
 } from "./EMWDAT.types";
 
 /**
@@ -29,12 +30,21 @@ declare class EMWDATNativeModule extends NativeModule<EMWDATModuleEvents> {
   requestPermission(permission: string): Promise<string>;
   getDevices(): Promise<Device[]>;
   getDevice(identifier: string): Promise<Device | null>;
-  getStreamState(): Promise<string>;
-  startStream(config: Partial<StreamSessionConfig>): Promise<void>;
-  stopStream(): Promise<void>;
+
+  // Session-based streaming
+  createSession(deviceId?: string): Promise<string>;
+  startSession(sessionId: string): Promise<void>;
+  stopSession(sessionId: string): Promise<void>;
+  addStreamToSession(sessionId: string, config: Partial<StreamSessionConfig>): Promise<void>;
+  removeStreamFromSession(sessionId: string): Promise<void>;
   capturePhoto(format: string): Promise<void>;
-  createMockDevice(): Promise<string>;
-  removeMockDevice(id: string): Promise<void>;
+
+  // Mock device kit
+  enableMockDeviceKit(config: MockDeviceKitConfig): Promise<void>;
+  disableMockDeviceKit(): Promise<void>;
+  isMockDeviceKitEnabled(): Promise<boolean>;
+  pairMockDevice(): Promise<string>;
+  unpairMockDevice(deviceId: string): Promise<void>;
   getMockDevices(): Promise<string[]>;
   mockDevicePowerOn(id: string): Promise<void>;
   mockDevicePowerOff(id: string): Promise<void>;
@@ -44,6 +54,9 @@ declare class EMWDATNativeModule extends NativeModule<EMWDATModuleEvents> {
   mockDeviceUnfold(id: string): Promise<void>;
   mockDeviceSetCameraFeed(id: string, fileUrl: string): Promise<void>;
   mockDeviceSetCapturedImage(id: string, fileUrl: string): Promise<void>;
+  mockDeviceSetCameraFeedFromCamera(id: string, facing: string): Promise<void>;
+  mockSetPermissionStatus(permission: string, status: string): Promise<void>;
+  mockSetPermissionRequestResult(permission: string, result: string): Promise<void>;
 }
 
 /** The native EMWDAT module instance. */
@@ -124,19 +137,36 @@ export async function getDevice(identifier: string): Promise<Device | null> {
   return EMWDATModule.getDevice(identifier);
 }
 
-/** Return the current stream session state. */
-export async function getStreamState(): Promise<StreamSessionState> {
-  return (await EMWDATModule.getStreamState()) as StreamSessionState;
+// =============================================================================
+// Session-based streaming
+// =============================================================================
+
+/** Create a new device session. Returns a sessionId. Optionally target a specific device. */
+export async function createSession(deviceId?: string): Promise<string> {
+  return EMWDATModule.createSession(deviceId);
 }
 
-/** Start a camera stream session with the given configuration. Defaults apply for omitted fields. */
-export async function startStream(config?: Partial<StreamSessionConfig>): Promise<void> {
-  return EMWDATModule.startStream(config ?? {});
+/** Start a previously created session. Connects to the device. */
+export async function startSession(sessionId: string): Promise<void> {
+  return EMWDATModule.startSession(sessionId);
 }
 
-/** Stop the active stream session. */
-export async function stopStream(): Promise<void> {
-  return EMWDATModule.stopStream();
+/** Stop a session. This is terminal — create a new session to stream again. */
+export async function stopSession(sessionId: string): Promise<void> {
+  return EMWDATModule.stopSession(sessionId);
+}
+
+/** Attach a camera stream capability to a session. */
+export async function addStreamToSession(
+  sessionId: string,
+  config?: Partial<StreamSessionConfig>
+): Promise<void> {
+  return EMWDATModule.addStreamToSession(sessionId, config ?? {});
+}
+
+/** Remove the camera stream capability from a session. */
+export async function removeStreamFromSession(sessionId: string): Promise<void> {
+  return EMWDATModule.removeStreamFromSession(sessionId);
 }
 
 /** Capture a photo from the active stream. Defaults to JPEG format. */
@@ -145,17 +175,32 @@ export async function capturePhoto(format?: PhotoCaptureFormat): Promise<void> {
 }
 
 // =============================================================================
-// Mock Device functions (DEBUG only, throws on web/release)
+// Mock Device Kit (DEBUG only, throws on web/release)
 // =============================================================================
 
-/** Create a mock Ray-Ban Meta device. Returns the device identifier. */
-export async function createMockDevice(): Promise<string> {
-  return EMWDATModule.createMockDevice();
+/** Enable MockDeviceKit with optional configuration. */
+export async function enableMockDeviceKit(config?: MockDeviceKitConfig): Promise<void> {
+  return EMWDATModule.enableMockDeviceKit(config ?? {});
 }
 
-/** Remove a mock device by identifier. */
-export async function removeMockDevice(id: string): Promise<void> {
-  return EMWDATModule.removeMockDevice(id);
+/** Disable MockDeviceKit and remove all fake implementations. */
+export async function disableMockDeviceKit(): Promise<void> {
+  return EMWDATModule.disableMockDeviceKit();
+}
+
+/** Check if MockDeviceKit is currently enabled. */
+export async function isMockDeviceKitEnabled(): Promise<boolean> {
+  return EMWDATModule.isMockDeviceKitEnabled();
+}
+
+/** Pair a simulated Ray-Ban Meta device. Returns the device identifier. */
+export async function pairMockDevice(): Promise<string> {
+  return EMWDATModule.pairMockDevice();
+}
+
+/** Unpair a mock device by identifier. */
+export async function unpairMockDevice(deviceId: string): Promise<void> {
+  return EMWDATModule.unpairMockDevice(deviceId);
 }
 
 /** Get identifiers of all active mock devices. */
@@ -201,4 +246,28 @@ export async function mockDeviceSetCameraFeed(id: string, fileUrl: string): Prom
 /** Set the captured image for a mock device from a local file URL. */
 export async function mockDeviceSetCapturedImage(id: string, fileUrl: string): Promise<void> {
   return EMWDATModule.mockDeviceSetCapturedImage(id, fileUrl);
+}
+
+/** Set the camera feed from the phone's physical camera for a mock device. */
+export async function mockDeviceSetCameraFeedFromCamera(
+  id: string,
+  facing: CameraFacing
+): Promise<void> {
+  return EMWDATModule.mockDeviceSetCameraFeedFromCamera(id, facing);
+}
+
+/** Set a mock permission status for testing. */
+export async function mockSetPermissionStatus(
+  permission: Permission,
+  status: PermissionStatus
+): Promise<void> {
+  return EMWDATModule.mockSetPermissionStatus(permission, status);
+}
+
+/** Set the expected result when a permission is requested in mock mode. */
+export async function mockSetPermissionRequestResult(
+  permission: Permission,
+  result: PermissionStatus
+): Promise<void> {
+  return EMWDATModule.mockSetPermissionRequestResult(permission, result);
 }

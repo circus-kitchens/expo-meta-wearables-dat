@@ -8,6 +8,7 @@ import type {
   VideoCodec,
   DeviceIdentifier,
   LogLevel,
+  StreamSessionState,
 } from "expo-meta-wearables-dat";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text } from "react-native";
@@ -45,6 +46,8 @@ export default function App() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<DeviceIdentifier | null>(null);
   const [logLevel, setLogLevelState] = useState<LogLevel>("debug");
   const [eventLog, setEventLog] = useState<LogEntry[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [streamState, setStreamState] = useState<StreamSessionState>("stopped");
 
   // Frame stats
   const [fps, setFps] = useState(0);
@@ -67,16 +70,16 @@ export default function App() {
     registrationState,
     permissionStatus,
     devices,
-    streamState,
-    lastError,
     // Actions
     setLogLevel: nativeSetLogLevel,
     startRegistration,
     startUnregistration,
     requestPermission,
     refreshDevices,
-    startStream,
-    stopStream,
+    createSession,
+    startSession,
+    stopSession,
+    addStreamToSession,
     capturePhoto,
   } = useMetaWearables({
     logLevel,
@@ -93,6 +96,7 @@ export default function App() {
     },
     onStreamStateChange: (state) => {
       addLogEntry(`Stream → ${state}`, streamColor(state));
+      setStreamState(state);
     },
     onVideoFrame: (metadata) => {
       frameCountRef.current++;
@@ -194,9 +198,6 @@ export default function App() {
               color={permissionStatus === "granted" ? "#22c55e" : "#ef4444"}
             />
             <StatusRow label="Stream" value={streamState} color={streamColor(streamState)} />
-            {lastError && (
-              <StatusRow label="Last Error" value={formatError(lastError)} color="#ef4444" />
-            )}
           </Section>
 
           {/* Registration */}
@@ -289,14 +290,22 @@ export default function App() {
                   throw new Error("Camera permission is required to stream.");
                 }
               }
-              await startStream({
+              const sessionId = await createSession(selectedDeviceId ?? undefined);
+              setCurrentSessionId(sessionId);
+              await startSession(sessionId);
+              await addStreamToSession(sessionId, {
                 resolution,
                 frameRate,
                 videoCodec,
-                ...(selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
               });
             })}
-            onStopStream={safe(stopStream)}
+            onStopStream={safe(async () => {
+              if (currentSessionId) {
+                await stopSession(currentSessionId);
+                setCurrentSessionId(null);
+                setStreamState("stopped");
+              }
+            })}
             onCapturePhoto={safe(() => capturePhoto(photoFormat))}
           />
 

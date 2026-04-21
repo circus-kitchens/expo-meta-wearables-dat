@@ -42,6 +42,7 @@ export type DeviceType =
   | "oakleyMetaHSTN"
   | "oakleyMetaVanguard"
   | "metaRayBanDisplay"
+  | "rayBanMetaOptics"
   | "unknown";
 
 export interface Device {
@@ -66,6 +67,17 @@ export interface StreamSessionConfig {
   frameRate: number;
   /** Target a specific device by identifier. When omitted, auto-selects a connected device. */
   deviceId?: DeviceIdentifier;
+  /**
+   * When true, the SDK delivers compressed HEVC buffers instead of decoded YUV pixel data.
+   * On iOS this maps to videoCodec "hvc1". On Android it uses StreamConfiguration.compressVideo.
+   * Default: false.
+   */
+  compressVideo?: boolean;
+  /**
+   * Whether to skip launching the native app on the device when starting the stream.
+   * iOS only. Default: false.
+   */
+  skipAppLaunch?: boolean;
 }
 
 /**
@@ -87,6 +99,8 @@ export interface VideoFrameMetadata {
   timestamp: number;
   width: number;
   height: number;
+  /** Whether this frame contains compressed HEVC data (true) or decoded pixel data (false). */
+  isCompressed?: boolean;
 }
 
 // =============================================================================
@@ -105,14 +119,56 @@ export interface PhotoData {
 }
 
 // =============================================================================
-// SESSION STATE (DeviceStateSession)
+// DEVICE SESSION
 // =============================================================================
 
 /**
- * Device session state lifecycle: stopped → waitingForDevice → running/paused → unknown
- * Exposed via onDeviceSessionStateChange event and deviceSessionStates in the hook.
+ * Lifecycle of a DeviceSession: idle → starting → started → paused → stopping → stopped.
+ * `stopped` is terminal — create a new session via createSession().
  */
-export type SessionState = "stopped" | "waitingForDevice" | "running" | "paused" | "unknown";
+export type DeviceSessionState =
+  | "idle"
+  | "starting"
+  | "started"
+  | "paused"
+  | "stopping"
+  | "stopped";
+
+/**
+ * Errors that can occur during DeviceSession operations.
+ */
+export type DeviceSessionErrorCode =
+  | "noEligibleDevice"
+  | "sessionAlreadyStopped"
+  | "sessionAlreadyExists"
+  | "sessionIdle"
+  | "capabilityAlreadyActive"
+  | "capabilityNotFound"
+  | "unexpectedError";
+
+/**
+ * State of a capability (e.g. Stream) attached to a DeviceSession.
+ */
+export type CapabilityState = "active" | "stopped";
+
+// =============================================================================
+// MOCK DEVICE
+// =============================================================================
+
+/**
+ * Configuration for enabling MockDeviceKit.
+ */
+export interface MockDeviceKitConfig {
+  /** Whether to start in registered state. Default: true. */
+  initiallyRegistered?: boolean;
+  /** Whether camera permission starts as granted. Default: true. */
+  initialPermissionsGranted?: boolean;
+}
+
+/**
+ * Which phone camera to use as mock device camera source.
+ */
+export type CameraFacing = "front" | "back";
 
 // =============================================================================
 // ERRORS
@@ -190,10 +246,13 @@ export type EMWDATModuleEvents = {
     deviceId: DeviceIdentifier;
     compatibility: Compatibility;
   }) => void;
-  onDeviceSessionStateChange: (payload: {
-    deviceId: DeviceIdentifier;
-    sessionState: SessionState;
+  onDeviceSessionStateChange: (payload: { sessionId: string; state: DeviceSessionState }) => void;
+  onDeviceSessionError: (payload: {
+    sessionId: string;
+    error: DeviceSessionErrorCode;
+    message?: string;
   }) => void;
+  onCapabilityStateChange: (payload: { sessionId: string; state: CapabilityState }) => void;
 };
 
 export type EMWDATEventName = keyof EMWDATModuleEvents;
@@ -212,7 +271,13 @@ export interface MetaWearablesCallbacks {
   onStreamError?: (error: StreamSessionError) => void;
   onPermissionStatusChange?: (permission: Permission, status: PermissionStatus) => void;
   onCompatibilityChange?: (deviceId: DeviceIdentifier, compatibility: Compatibility) => void;
-  onDeviceSessionStateChange?: (deviceId: DeviceIdentifier, sessionState: SessionState) => void;
+  onDeviceSessionStateChange?: (sessionId: string, state: DeviceSessionState) => void;
+  onDeviceSessionError?: (
+    sessionId: string,
+    error: DeviceSessionErrorCode,
+    message?: string
+  ) => void;
+  onCapabilityStateChange?: (sessionId: string, state: CapabilityState) => void;
 }
 
 // =============================================================================
@@ -234,22 +299,46 @@ export interface UseMetaWearablesReturn {
   registrationState: RegistrationState;
   permissionStatus: PermissionStatus;
   devices: Device[];
-  streamState: StreamSessionState;
-  lastError: StreamSessionError | null;
-  deviceSessionStates: Record<DeviceIdentifier, SessionState>;
+  deviceSessionStates: Record<string, DeviceSessionState>;
+  deviceSessionErrors: Record<string, { error: DeviceSessionErrorCode; message?: string }>;
+  capabilityStates: Record<string, CapabilityState>;
 
-  // Actions
+  // Actions — configuration
   configure: () => Promise<void>;
   setLogLevel: (level: LogLevel) => void;
+
+  // Actions — registration
   startRegistration: () => Promise<void>;
   startUnregistration: () => Promise<void>;
+
+  // Actions — permissions
   checkPermissionStatus: (permission: Permission) => Promise<PermissionStatus>;
   requestPermission: (permission: Permission) => Promise<PermissionStatus>;
+
+  // Actions — devices
   getDevice: (identifier: DeviceIdentifier) => Promise<Device | null>;
   refreshDevices: () => Promise<Device[]>;
-  startStream: (config?: Partial<StreamSessionConfig>) => Promise<void>;
-  stopStream: () => Promise<void>;
+
+  // Actions — session-based streaming
+  createSession: (deviceId?: DeviceIdentifier) => Promise<string>;
+  startSession: (sessionId: string) => Promise<void>;
+  stopSession: (sessionId: string) => Promise<void>;
+  addStreamToSession: (sessionId: string, config?: Partial<StreamSessionConfig>) => Promise<void>;
+  removeStreamFromSession: (sessionId: string) => Promise<void>;
   capturePhoto: (format?: PhotoCaptureFormat) => Promise<void>;
+
+  // Actions — mock device kit
+  enableMockDeviceKit: (config?: MockDeviceKitConfig) => Promise<void>;
+  disableMockDeviceKit: () => Promise<void>;
+  isMockDeviceKitEnabled: () => Promise<boolean>;
+  pairMockDevice: () => Promise<string>;
+  unpairMockDevice: (deviceId: string) => Promise<void>;
+  mockSetPermissionStatus: (permission: Permission, status: PermissionStatus) => Promise<void>;
+  mockSetPermissionRequestResult: (
+    permission: Permission,
+    result: PermissionStatus
+  ) => Promise<void>;
+  mockDeviceSetCameraFeedFromCamera: (id: string, facing: CameraFacing) => Promise<void>;
 }
 
 // =============================================================================

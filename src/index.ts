@@ -20,12 +20,19 @@ export {
   requestPermission,
   getDevices,
   getDevice,
-  getStreamState,
-  startStream,
-  stopStream,
+  // Session-based streaming
+  createSession,
+  startSession,
+  stopSession,
+  addStreamToSession,
+  removeStreamFromSession,
   capturePhoto,
-  createMockDevice,
-  removeMockDevice,
+  // Mock device kit
+  enableMockDeviceKit,
+  disableMockDeviceKit,
+  isMockDeviceKitEnabled,
+  pairMockDevice,
+  unpairMockDevice,
   getMockDevices,
   mockDevicePowerOn,
   mockDevicePowerOff,
@@ -35,6 +42,9 @@ export {
   mockDeviceUnfold,
   mockDeviceSetCameraFeed,
   mockDeviceSetCapturedImage,
+  mockDeviceSetCameraFeedFromCamera,
+  mockSetPermissionStatus,
+  mockSetPermissionRequestResult,
 } from "./EMWDATModule";
 
 // Types

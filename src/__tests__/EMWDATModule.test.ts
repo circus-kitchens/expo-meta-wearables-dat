@@ -1,6 +1,12 @@
 import { Platform } from "react-native";
 
-import { addListener, startStream, capturePhoto, EMWDATModule } from "../EMWDATModule";
+import {
+  addListener,
+  addStreamToSession,
+  capturePhoto,
+  createSession,
+  EMWDATModule,
+} from "../EMWDATModule";
 
 jest.mock("expo", () => {
   const nativeModule = {
@@ -15,10 +21,29 @@ jest.mock("expo", () => {
     requestPermission: jest.fn(() => Promise.resolve("granted")),
     getDevices: jest.fn(() => Promise.resolve([])),
     getDevice: jest.fn(() => Promise.resolve(null)),
-    getStreamState: jest.fn(() => Promise.resolve("stopped")),
-    startStream: jest.fn(() => Promise.resolve()),
-    stopStream: jest.fn(() => Promise.resolve()),
+    createSession: jest.fn(() => Promise.resolve("session-123")),
+    startSession: jest.fn(() => Promise.resolve()),
+    stopSession: jest.fn(() => Promise.resolve()),
+    addStreamToSession: jest.fn(() => Promise.resolve()),
+    removeStreamFromSession: jest.fn(() => Promise.resolve()),
     capturePhoto: jest.fn(() => Promise.resolve()),
+    enableMockDeviceKit: jest.fn(() => Promise.resolve()),
+    disableMockDeviceKit: jest.fn(() => Promise.resolve()),
+    isMockDeviceKitEnabled: jest.fn(() => Promise.resolve(false)),
+    pairMockDevice: jest.fn(() => Promise.resolve("mock-1")),
+    unpairMockDevice: jest.fn(() => Promise.resolve()),
+    getMockDevices: jest.fn(() => Promise.resolve([])),
+    mockDevicePowerOn: jest.fn(() => Promise.resolve()),
+    mockDevicePowerOff: jest.fn(() => Promise.resolve()),
+    mockDeviceDon: jest.fn(() => Promise.resolve()),
+    mockDeviceDoff: jest.fn(() => Promise.resolve()),
+    mockDeviceFold: jest.fn(() => Promise.resolve()),
+    mockDeviceUnfold: jest.fn(() => Promise.resolve()),
+    mockDeviceSetCameraFeed: jest.fn(() => Promise.resolve()),
+    mockDeviceSetCapturedImage: jest.fn(() => Promise.resolve()),
+    mockDeviceSetCameraFeedFromCamera: jest.fn(() => Promise.resolve()),
+    mockSetPermissionStatus: jest.fn(() => Promise.resolve()),
+    mockSetPermissionRequestResult: jest.fn(() => Promise.resolve()),
     addListener: jest.fn(() => ({ remove: jest.fn() })),
   };
   return {
@@ -59,28 +84,40 @@ describe("EMWDATModule wrappers", () => {
     });
   });
 
-  it("startStream defaults to empty config when called without args", async () => {
-    await startStream();
-    expect(native.startStream).toHaveBeenCalledWith({});
+  describe("session-based streaming", () => {
+    it("createSession passes deviceId to native", async () => {
+      await createSession("device-abc");
+      expect(native.createSession).toHaveBeenCalledWith("device-abc");
+    });
+
+    it("createSession passes undefined when no deviceId", async () => {
+      await createSession();
+      expect(native.createSession).toHaveBeenCalledWith(undefined);
+    });
+
+    it("addStreamToSession defaults to empty config when called without config", async () => {
+      await addStreamToSession("session-123");
+      expect(native.addStreamToSession).toHaveBeenCalledWith("session-123", {});
+    });
+
+    it("addStreamToSession passes config with compressVideo", async () => {
+      await addStreamToSession("session-123", { compressVideo: true, resolution: "high" });
+      expect(native.addStreamToSession).toHaveBeenCalledWith("session-123", {
+        compressVideo: true,
+        resolution: "high",
+      });
+    });
   });
 
-  it("capturePhoto defaults to jpeg format when called without args", async () => {
-    await capturePhoto();
-    expect(native.capturePhoto).toHaveBeenCalledWith("jpeg");
-  });
+  describe("capturePhoto", () => {
+    it("defaults to jpeg format when called without args", async () => {
+      await capturePhoto();
+      expect(native.capturePhoto).toHaveBeenCalledWith("jpeg");
+    });
 
-  it("capturePhoto passes explicit format through", async () => {
-    await capturePhoto("heic");
-    expect(native.capturePhoto).toHaveBeenCalledWith("heic");
-  });
-
-  it("startStream passes hvc1 videoCodec to native", async () => {
-    await startStream({ videoCodec: "hvc1" });
-    expect(native.startStream).toHaveBeenCalledWith({ videoCodec: "hvc1" });
-  });
-
-  it("startStream passes config with resolution 'high' for 720p", async () => {
-    await startStream({ resolution: "high", frameRate: 30 });
-    expect(native.startStream).toHaveBeenCalledWith({ resolution: "high", frameRate: 30 });
+    it("passes explicit format through", async () => {
+      await capturePhoto("heic");
+      expect(native.capturePhoto).toHaveBeenCalledWith("heic");
+    });
   });
 });

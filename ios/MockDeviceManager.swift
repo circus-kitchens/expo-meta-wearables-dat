@@ -16,23 +16,47 @@ public final class MockDeviceManager {
 
     private init() {}
 
-    // MARK: - Create / Remove
+    // MARK: - Kit Lifecycle
 
-    public func createMockDevice() -> String {
+    public func enableMockDeviceKit(initiallyRegistered: Bool = true, initialPermissionsGranted: Bool = true) {
+        let config = MockDeviceKitConfig(
+            initiallyRegistered: initiallyRegistered,
+            initialPermissionsGranted: initialPermissionsGranted
+        )
+        MockDeviceKit.shared.enable(config: config)
+        logger.info("MockDeviceManager", "MockDeviceKit enabled", context: [
+            "initiallyRegistered": initiallyRegistered,
+            "initialPermissionsGranted": initialPermissionsGranted
+        ])
+    }
+
+    public func disableMockDeviceKit() {
+        MockDeviceKit.shared.disable()
+        devices.removeAll()
+        logger.info("MockDeviceManager", "MockDeviceKit disabled")
+    }
+
+    public func isMockDeviceKitEnabled() -> Bool {
+        return MockDeviceKit.shared.isEnabled
+    }
+
+    // MARK: - Pair / Unpair
+
+    public func pairMockDevice() -> String {
         let device = MockDeviceKit.shared.pairRaybanMeta()
         let id = "\(device.deviceIdentifier)"
         devices[id] = device
-        logger.info("MockDeviceManager", "Created mock device", context: ["id": id])
+        logger.info("MockDeviceManager", "Paired mock device", context: ["id": id])
         return id
     }
 
-    public func removeMockDevice(id: String) throws {
+    public func unpairMockDevice(id: String) throws {
         guard let device = devices[id] else {
             throw MockDeviceManagerError.deviceNotFound(id)
         }
         MockDeviceKit.shared.unpairDevice(device)
         devices.removeValue(forKey: id)
-        logger.info("MockDeviceManager", "Removed mock device", context: ["id": id])
+        logger.info("MockDeviceManager", "Unpaired mock device", context: ["id": id])
     }
 
     public func getMockDevices() -> [String] {
@@ -69,16 +93,46 @@ public final class MockDeviceManager {
         try getDevice(id).unfold()
     }
 
-    // MARK: - Camera
+    // MARK: - Camera (file-based — now synchronous in SDK 0.6)
 
-    public func setCameraFeed(id: String, fileURL: URL) async throws {
-        let cameraKit = try getDevice(id).getCameraKit()
-        await cameraKit.setCameraFeed(fileURL: fileURL)
+    public func setCameraFeed(id: String, fileURL: URL) throws {
+        let camera = try getDevice(id).services.camera
+        camera.setCameraFeed(fileURL: fileURL)
     }
 
-    public func setCapturedImage(id: String, fileURL: URL) async throws {
-        let cameraKit = try getDevice(id).getCameraKit()
-        await cameraKit.setCapturedImage(fileURL: fileURL)
+    public func setCapturedImage(id: String, fileURL: URL) throws {
+        let camera = try getDevice(id).services.camera
+        camera.setCapturedImage(fileURL: fileURL)
+    }
+
+    // MARK: - Camera (phone camera — new in SDK 0.6)
+
+    public func setCameraFeedFromCamera(id: String, facing: String) async throws {
+        let camera = try getDevice(id).services.camera
+        let cameraFacing: CameraFacing = facing == "back" ? .back : .front
+        await camera.setCameraFeed(cameraFacing: cameraFacing)
+    }
+
+    // MARK: - Permissions
+
+    public func setPermissionStatus(permission: String, status: String) {
+        guard let perm = mapPermission(permission),
+              let stat = mapPermissionStatus(status) else { return }
+        MockDeviceKit.shared.permissions.set(perm, stat)
+        logger.info("MockDeviceManager", "Set permission status", context: [
+            "permission": permission,
+            "status": status
+        ])
+    }
+
+    public func setPermissionRequestResult(permission: String, result: String) {
+        guard let perm = mapPermission(permission),
+              let stat = mapPermissionStatus(result) else { return }
+        MockDeviceKit.shared.permissions.setRequestResult(perm, result: stat)
+        logger.info("MockDeviceManager", "Set permission request result", context: [
+            "permission": permission,
+            "result": result
+        ])
     }
 
     // MARK: - Helpers
@@ -88,6 +142,21 @@ public final class MockDeviceManager {
             throw MockDeviceManagerError.deviceNotFound(id)
         }
         return device
+    }
+
+    private func mapPermission(_ permission: String) -> Permission? {
+        switch permission {
+        case "camera": return .camera
+        default: return nil
+        }
+    }
+
+    private func mapPermissionStatus(_ status: String) -> PermissionStatus? {
+        switch status {
+        case "granted": return .granted
+        case "denied": return .denied
+        default: return nil
+        }
     }
 }
 

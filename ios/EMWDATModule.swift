@@ -18,7 +18,9 @@ public class EMWDATModule: Module {
             "onStreamError",
             "onPermissionStatusChange",
             "onCompatibilityChange",
-            "onDeviceSessionStateChange"
+            "onDeviceSessionStateChange",
+            "onDeviceSessionError",
+            "onCapabilityStateChange"
         )
 
         // MARK: - Lifecycle
@@ -120,7 +122,7 @@ public class EMWDATModule: Module {
                 promise.resolve(false)
                 return
             }
-            Task {
+            Task { @MainActor in
                 do {
                     let handled = try await Wearables.shared.handleUrl(parsedUrl)
                     promise.resolve(handled)
@@ -187,31 +189,56 @@ public class EMWDATModule: Module {
             }
         }
 
-        // MARK: - Streaming
+        // MARK: - Session Management
 
-        AsyncFunction("getStreamState") { (promise: Promise) in
-            Task { @MainActor in
-                let state = StreamSessionManager.shared.currentState
-                promise.resolve(self.mapStreamState(state))
-            }
-        }
-
-        AsyncFunction("startStream") { (config: [String: Any], promise: Promise) in
+        AsyncFunction("createSession") { (deviceId: String?, promise: Promise) in
             Task { @MainActor in
                 do {
-                    let sessionConfig = StreamSessionManager.parseConfig(from: config)
-                    let deviceId = config["deviceId"] as? String
-                    try await StreamSessionManager.shared.startStream(config: sessionConfig, deviceId: deviceId)
-                    promise.resolve(nil)
+                    let sessionId = try WearablesManager.shared.createSession(deviceId: deviceId)
+                    promise.resolve(sessionId)
                 } catch {
-                    promise.reject("STREAM_START_FAILED", error.localizedDescription)
+                    promise.reject("SESSION_CREATE_FAILED", error.localizedDescription)
                 }
             }
         }
 
-        AsyncFunction("stopStream") { (promise: Promise) in
+        AsyncFunction("startSession") { (sessionId: String, promise: Promise) in
             Task { @MainActor in
-                await StreamSessionManager.shared.stopStream()
+                do {
+                    try WearablesManager.shared.startSession(sessionId: sessionId)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("SESSION_START_FAILED", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("stopSession") { (sessionId: String, promise: Promise) in
+            Task { @MainActor in
+                do {
+                    try WearablesManager.shared.stopSession(sessionId: sessionId)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("SESSION_STOP_FAILED", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("addStreamToSession") { (sessionId: String, config: [String: Any], promise: Promise) in
+            Task { @MainActor in
+                do {
+                    let sessionConfig = StreamSessionManager.parseConfig(from: config)
+                    try await StreamSessionManager.shared.addStreamToSession(sessionId: sessionId, config: sessionConfig)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("STREAM_ADD_FAILED", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("removeStreamFromSession") { (sessionId: String, promise: Promise) in
+            Task { @MainActor in
+                await StreamSessionManager.shared.removeStreamFromSession(sessionId: sessionId)
                 promise.resolve(nil)
             }
         }
@@ -230,20 +257,45 @@ public class EMWDATModule: Module {
             }
         }
 
-        // MARK: - Mock Device (DEBUG only)
+        // MARK: - Mock Device Kit (DEBUG only)
 
         #if DEBUG
-        AsyncFunction("createMockDevice") { (promise: Promise) in
+        AsyncFunction("enableMockDeviceKit") { (config: [String: Any], promise: Promise) in
             Task { @MainActor in
-                let id = MockDeviceManager.shared.createMockDevice()
+                let initiallyRegistered = config["initiallyRegistered"] as? Bool ?? true
+                let initialPermissionsGranted = config["initialPermissionsGranted"] as? Bool ?? true
+                MockDeviceManager.shared.enableMockDeviceKit(
+                    initiallyRegistered: initiallyRegistered,
+                    initialPermissionsGranted: initialPermissionsGranted
+                )
+                promise.resolve(nil)
+            }
+        }
+
+        AsyncFunction("disableMockDeviceKit") { (promise: Promise) in
+            Task { @MainActor in
+                MockDeviceManager.shared.disableMockDeviceKit()
+                promise.resolve(nil)
+            }
+        }
+
+        AsyncFunction("isMockDeviceKitEnabled") { (promise: Promise) in
+            Task { @MainActor in
+                promise.resolve(MockDeviceManager.shared.isMockDeviceKitEnabled())
+            }
+        }
+
+        AsyncFunction("pairMockDevice") { (promise: Promise) in
+            Task { @MainActor in
+                let id = MockDeviceManager.shared.pairMockDevice()
                 promise.resolve(id)
             }
         }
 
-        AsyncFunction("removeMockDevice") { (id: String, promise: Promise) in
+        AsyncFunction("unpairMockDevice") { (deviceId: String, promise: Promise) in
             Task { @MainActor in
                 do {
-                    try MockDeviceManager.shared.removeMockDevice(id: id)
+                    try MockDeviceManager.shared.unpairMockDevice(id: deviceId)
                     promise.resolve(nil)
                 } catch {
                     promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
@@ -336,7 +388,7 @@ public class EMWDATModule: Module {
             }
             Task { @MainActor in
                 do {
-                    try await MockDeviceManager.shared.setCameraFeed(id: id, fileURL: url)
+                    try MockDeviceManager.shared.setCameraFeed(id: id, fileURL: url)
                     promise.resolve(nil)
                 } catch {
                     promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
@@ -357,16 +409,41 @@ public class EMWDATModule: Module {
             }
             Task { @MainActor in
                 do {
-                    try await MockDeviceManager.shared.setCapturedImage(id: id, fileURL: url)
+                    try MockDeviceManager.shared.setCapturedImage(id: id, fileURL: url)
                     promise.resolve(nil)
                 } catch {
                     promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
                 }
             }
         }
+
+        AsyncFunction("mockDeviceSetCameraFeedFromCamera") { (id: String, facing: String, promise: Promise) in
+            Task { @MainActor in
+                do {
+                    try await MockDeviceManager.shared.setCameraFeedFromCamera(id: id, facing: facing)
+                    promise.resolve(nil)
+                } catch {
+                    promise.reject("MOCK_DEVICE_ERROR", error.localizedDescription)
+                }
+            }
+        }
+
+        AsyncFunction("mockSetPermissionStatus") { (permission: String, status: String, promise: Promise) in
+            Task { @MainActor in
+                MockDeviceManager.shared.setPermissionStatus(permission: permission, status: status)
+                promise.resolve(nil)
+            }
+        }
+
+        AsyncFunction("mockSetPermissionRequestResult") { (permission: String, result: String, promise: Promise) in
+            Task { @MainActor in
+                MockDeviceManager.shared.setPermissionRequestResult(permission: permission, result: result)
+                promise.resolve(nil)
+            }
+        }
         #endif
 
-        // MARK: - View (EMWDATStreamView created in step 6)
+        // MARK: - View
 
         View(EMWDATStreamView.self) {
             Prop("isActive") { (view: EMWDATStreamView, isActive: Bool) in
@@ -396,18 +473,6 @@ public class EMWDATModule: Module {
         case .granted: return "granted"
         case .denied: return "denied"
         @unknown default: return "denied"
-        }
-    }
-
-    private func mapStreamState(_ state: StreamSessionState) -> String {
-        switch state {
-        case .stopping: return "stopping"
-        case .stopped: return "stopped"
-        case .waitingForDevice: return "waitingForDevice"
-        case .starting: return "starting"
-        case .streaming: return "streaming"
-        case .paused: return "paused"
-        @unknown default: return "stopped"
         }
     }
 

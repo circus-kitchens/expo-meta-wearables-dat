@@ -1,6 +1,9 @@
 import {
-  createMockDevice,
-  removeMockDevice,
+  enableMockDeviceKit,
+  disableMockDeviceKit,
+  isMockDeviceKitEnabled,
+  pairMockDevice,
+  unpairMockDevice,
   getMockDevices,
   mockDevicePowerOn,
   mockDevicePowerOff,
@@ -10,13 +13,19 @@ import {
   mockDeviceUnfold,
   mockDeviceSetCameraFeed,
   mockDeviceSetCapturedImage,
+  mockDeviceSetCameraFeedFromCamera,
+  mockSetPermissionStatus,
+  mockSetPermissionRequestResult,
 } from "../EMWDATModule";
 
 jest.mock("expo", () => ({
   NativeModule: class {},
   requireNativeModule: () => ({
-    createMockDevice: jest.fn().mockResolvedValue("mock-id-123"),
-    removeMockDevice: jest.fn().mockResolvedValue(undefined),
+    enableMockDeviceKit: jest.fn().mockResolvedValue(undefined),
+    disableMockDeviceKit: jest.fn().mockResolvedValue(undefined),
+    isMockDeviceKitEnabled: jest.fn().mockResolvedValue(true),
+    pairMockDevice: jest.fn().mockResolvedValue("mock-id-123"),
+    unpairMockDevice: jest.fn().mockResolvedValue(undefined),
     getMockDevices: jest.fn().mockResolvedValue(["mock-id-123"]),
     mockDevicePowerOn: jest.fn().mockResolvedValue(undefined),
     mockDevicePowerOff: jest.fn().mockResolvedValue(undefined),
@@ -26,6 +35,9 @@ jest.mock("expo", () => ({
     mockDeviceUnfold: jest.fn().mockResolvedValue(undefined),
     mockDeviceSetCameraFeed: jest.fn().mockResolvedValue(undefined),
     mockDeviceSetCapturedImage: jest.fn().mockResolvedValue(undefined),
+    mockDeviceSetCameraFeedFromCamera: jest.fn().mockResolvedValue(undefined),
+    mockSetPermissionStatus: jest.fn().mockResolvedValue(undefined),
+    mockSetPermissionRequestResult: jest.fn().mockResolvedValue(undefined),
     addListener: jest.fn(),
   }),
 }));
@@ -34,21 +46,44 @@ jest.mock("react-native", () => ({
   Platform: { OS: "ios" },
 }));
 
-describe("Mock device functions", () => {
-  it("createMockDevice returns device id", async () => {
-    const id = await createMockDevice();
+describe("Mock device kit lifecycle", () => {
+  it("enableMockDeviceKit resolves", async () => {
+    await expect(enableMockDeviceKit()).resolves.toBeUndefined();
+  });
+
+  it("enableMockDeviceKit passes config", async () => {
+    await expect(
+      enableMockDeviceKit({ initiallyRegistered: false, initialPermissionsGranted: false })
+    ).resolves.toBeUndefined();
+  });
+
+  it("disableMockDeviceKit resolves", async () => {
+    await expect(disableMockDeviceKit()).resolves.toBeUndefined();
+  });
+
+  it("isMockDeviceKitEnabled returns boolean", async () => {
+    const enabled = await isMockDeviceKitEnabled();
+    expect(enabled).toBe(true);
+  });
+});
+
+describe("Mock device pairing", () => {
+  it("pairMockDevice returns device id", async () => {
+    const id = await pairMockDevice();
     expect(id).toBe("mock-id-123");
   });
 
-  it("removeMockDevice calls native module", async () => {
-    await expect(removeMockDevice("mock-id-123")).resolves.toBeUndefined();
+  it("unpairMockDevice calls native module", async () => {
+    await expect(unpairMockDevice("mock-id-123")).resolves.toBeUndefined();
   });
 
   it("getMockDevices returns array of ids", async () => {
     const ids = await getMockDevices();
     expect(ids).toEqual(["mock-id-123"]);
   });
+});
 
+describe("Mock device simulation", () => {
   it("mockDevicePowerOn resolves", async () => {
     await expect(mockDevicePowerOn("mock-id-123")).resolves.toBeUndefined();
   });
@@ -83,5 +118,21 @@ describe("Mock device functions", () => {
     await expect(
       mockDeviceSetCapturedImage("mock-id-123", "file:///test.jpg")
     ).resolves.toBeUndefined();
+  });
+
+  it("mockDeviceSetCameraFeedFromCamera resolves", async () => {
+    await expect(
+      mockDeviceSetCameraFeedFromCamera("mock-id-123", "front")
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("Mock permissions", () => {
+  it("mockSetPermissionStatus resolves", async () => {
+    await expect(mockSetPermissionStatus("camera", "granted")).resolves.toBeUndefined();
+  });
+
+  it("mockSetPermissionRequestResult resolves", async () => {
+    await expect(mockSetPermissionRequestResult("camera", "denied")).resolves.toBeUndefined();
   });
 });

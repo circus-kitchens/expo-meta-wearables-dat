@@ -12,15 +12,25 @@ jest.mock("../EMWDATModule", () => ({
   setLogLevel: jest.fn(),
   getRegistrationStateAsync: jest.fn(() => Promise.resolve("unavailable")),
   getDevices: jest.fn(() => Promise.resolve([])),
-  getStreamState: jest.fn(() => Promise.resolve("stopped")),
   startRegistration: jest.fn(() => Promise.resolve()),
   startUnregistration: jest.fn(() => Promise.resolve()),
   checkPermissionStatus: jest.fn(() => Promise.resolve("denied")),
   requestPermission: jest.fn(() => Promise.resolve("granted")),
   getDevice: jest.fn(() => Promise.resolve(null)),
-  startStream: jest.fn(() => Promise.resolve()),
-  stopStream: jest.fn(() => Promise.resolve()),
+  createSession: jest.fn(() => Promise.resolve("session-123")),
+  startSession: jest.fn(() => Promise.resolve()),
+  stopSession: jest.fn(() => Promise.resolve()),
+  addStreamToSession: jest.fn(() => Promise.resolve()),
+  removeStreamFromSession: jest.fn(() => Promise.resolve()),
   capturePhoto: jest.fn(() => Promise.resolve()),
+  enableMockDeviceKit: jest.fn(() => Promise.resolve()),
+  disableMockDeviceKit: jest.fn(() => Promise.resolve()),
+  isMockDeviceKitEnabled: jest.fn(() => Promise.resolve(false)),
+  pairMockDevice: jest.fn(() => Promise.resolve("mock-1")),
+  unpairMockDevice: jest.fn(() => Promise.resolve()),
+  mockSetPermissionStatus: jest.fn(() => Promise.resolve()),
+  mockSetPermissionRequestResult: jest.fn(() => Promise.resolve()),
+  mockDeviceSetCameraFeedFromCamera: jest.fn(() => Promise.resolve()),
 }));
 
 const m = require("../EMWDATModule") as Record<string, jest.Mock>;
@@ -40,14 +50,16 @@ beforeEach(() => {
   m.setLogLevel.mockImplementation(() => {});
   m.getRegistrationStateAsync.mockResolvedValue("unavailable");
   m.getDevices.mockResolvedValue([]);
-  m.getStreamState.mockResolvedValue("stopped");
   m.startRegistration.mockResolvedValue(undefined);
   m.startUnregistration.mockResolvedValue(undefined);
   m.checkPermissionStatus.mockResolvedValue("denied");
   m.requestPermission.mockResolvedValue("granted");
   m.getDevice.mockResolvedValue(null);
-  m.startStream.mockResolvedValue(undefined);
-  m.stopStream.mockResolvedValue(undefined);
+  m.createSession.mockResolvedValue("session-123");
+  m.startSession.mockResolvedValue(undefined);
+  m.stopSession.mockResolvedValue(undefined);
+  m.addStreamToSession.mockResolvedValue(undefined);
+  m.removeStreamFromSession.mockResolvedValue(undefined);
   m.capturePhoto.mockResolvedValue(undefined);
 });
 
@@ -84,7 +96,6 @@ describe("configure", () => {
   it("syncs initial state after configure", async () => {
     m.getRegistrationStateAsync.mockResolvedValue("registered");
     m.getDevices.mockResolvedValue([{ identifier: "d1", name: "Glasses", linkState: "connected" }]);
-    m.getStreamState.mockResolvedValue("stopped");
 
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
 
@@ -94,7 +105,6 @@ describe("configure", () => {
 
     expect(result.current.registrationState).toBe("registered");
     expect(result.current.devices).toHaveLength(1);
-    expect(result.current.streamState).toBe("stopped");
   });
 
   it("sets configError on failure and rethrows", async () => {
@@ -165,19 +175,17 @@ describe("guards", () => {
     expect(status).toBe("denied");
   });
 
-  it("startStream throws if not configured", async () => {
+  it("createSession throws if not configured", async () => {
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
-    await expect(result.current.startStream()).rejects.toThrow("SDK not configured");
+    await expect(result.current.createSession()).rejects.toThrow("SDK not configured");
   });
 
-  it("capturePhoto throws if not streaming", async () => {
+  it("createSession throws if not registered", async () => {
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
-
     await act(async () => {
       await result.current.configure();
     });
-
-    await expect(result.current.capturePhoto()).rejects.toThrow("stream is not active");
+    await expect(result.current.createSession()).rejects.toThrow("Must be registered");
   });
 });
 
@@ -253,10 +261,10 @@ describe("requestPermission", () => {
 });
 
 // ---------------------------------------------------------------------------
-// startStream — permission check flow
+// Session-based streaming
 // ---------------------------------------------------------------------------
 
-describe("startStream", () => {
+describe("session-based streaming", () => {
   async function configureRegistered(result: any) {
     m.getRegistrationStateAsync.mockResolvedValue("registered");
     await act(async () => {
@@ -264,16 +272,34 @@ describe("startStream", () => {
     });
   }
 
-  it("throws if not registered", async () => {
+  it("createSession returns sessionId when registered", async () => {
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
+    await configureRegistered(result);
+
+    let sessionId: string | undefined;
     await act(async () => {
-      await result.current.configure();
+      sessionId = await result.current.createSession();
     });
 
-    await expect(result.current.startStream()).rejects.toThrow("Must be registered");
+    expect(sessionId).toBe("session-123");
+    expect(m.createSession).toHaveBeenCalled();
   });
 
-  it("checks permission then requests if denied", async () => {
+  it("addStreamToSession checks permission then delegates", async () => {
+    m.checkPermissionStatus.mockResolvedValue("granted");
+
+    const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
+    await configureRegistered(result);
+
+    await act(async () => {
+      await result.current.addStreamToSession("session-123", { resolution: "high" });
+    });
+
+    expect(m.checkPermissionStatus).toHaveBeenCalledWith("camera");
+    expect(m.addStreamToSession).toHaveBeenCalledWith("session-123", { resolution: "high" });
+  });
+
+  it("addStreamToSession requests permission if denied", async () => {
     m.checkPermissionStatus.mockResolvedValue("denied");
     m.requestPermission.mockResolvedValue("granted");
 
@@ -281,29 +307,14 @@ describe("startStream", () => {
     await configureRegistered(result);
 
     await act(async () => {
-      await result.current.startStream();
+      await result.current.addStreamToSession("session-123");
     });
 
-    expect(m.checkPermissionStatus).toHaveBeenCalledWith("camera");
     expect(m.requestPermission).toHaveBeenCalledWith("camera");
-    expect(m.startStream).toHaveBeenCalled();
+    expect(m.addStreamToSession).toHaveBeenCalled();
   });
 
-  it("skips permission request if already granted", async () => {
-    m.checkPermissionStatus.mockResolvedValue("granted");
-
-    const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
-    await configureRegistered(result);
-
-    await act(async () => {
-      await result.current.startStream();
-    });
-
-    expect(m.requestPermission).not.toHaveBeenCalled();
-    expect(m.startStream).toHaveBeenCalled();
-  });
-
-  it("throws if permission denied after request", async () => {
+  it("addStreamToSession throws if permission denied after request", async () => {
     m.checkPermissionStatus.mockResolvedValue("denied");
     m.requestPermission.mockResolvedValue("denied");
 
@@ -311,52 +322,22 @@ describe("startStream", () => {
     await configureRegistered(result);
 
     await act(async () => {
-      await expect(result.current.startStream()).rejects.toThrow("Camera permission required");
+      await expect(result.current.addStreamToSession("session-123")).rejects.toThrow(
+        "Camera permission required"
+      );
     });
-    expect(m.startStream).not.toHaveBeenCalled();
+    expect(m.addStreamToSession).not.toHaveBeenCalled();
   });
 
-  it("throws if already streaming", async () => {
-    m.checkPermissionStatus.mockResolvedValue("granted");
-    m.getStreamState.mockResolvedValue("streaming");
-
+  it("stopSession delegates to native", async () => {
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
     await configureRegistered(result);
 
-    await expect(result.current.startStream()).rejects.toThrow("Stream already active");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// stopStream
-// ---------------------------------------------------------------------------
-
-describe("stopStream", () => {
-  it("no-ops when already stopped", async () => {
-    const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
-
     await act(async () => {
-      await result.current.stopStream();
+      await result.current.stopSession("session-123");
     });
 
-    expect(m.stopStream).not.toHaveBeenCalled();
-  });
-
-  it("delegates when stream is active", async () => {
-    const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
-
-    const listeners = getListeners();
-
-    // Simulate stream becoming active
-    await act(async () => {
-      listeners.onStreamStateChange({ state: "streaming" });
-    });
-
-    await act(async () => {
-      await result.current.stopStream();
-    });
-
-    expect(m.stopStream).toHaveBeenCalled();
+    expect(m.stopSession).toHaveBeenCalledWith("session-123");
   });
 });
 
@@ -380,17 +361,6 @@ describe("events", () => {
     expect(result.current.registrationState).toBe("registered");
   });
 
-  it("onStreamStateChange updates state", async () => {
-    const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
-    const listeners = getListeners();
-
-    await act(async () => {
-      listeners.onStreamStateChange({ state: "streaming" });
-    });
-
-    expect(result.current.streamState).toBe("streaming");
-  });
-
   it("onDevicesChange updates devices", async () => {
     const devices = [{ identifier: "d1", name: "Glasses" }];
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
@@ -403,50 +373,63 @@ describe("events", () => {
     expect(result.current.devices).toEqual(devices);
   });
 
-  it("onStreamError sets lastError and auto-stops if streaming", async () => {
+  it("onDeviceSessionStateChange updates map", async () => {
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
     const listeners = getListeners();
 
     await act(async () => {
-      listeners.onStreamStateChange({ state: "streaming" });
+      listeners.onDeviceSessionStateChange({
+        sessionId: "s1",
+        state: "started",
+      });
     });
 
-    await act(async () => {
-      listeners.onStreamError({ type: "internalError" });
-    });
-
-    expect(result.current.lastError).toEqual({ type: "internalError" });
-    expect(m.stopStream).toHaveBeenCalled();
+    expect(result.current.deviceSessionStates).toEqual({ s1: "started" });
   });
 
-  it("onStreamError handles thermalCritical error", async () => {
-    const onStreamError = jest.fn();
-    const { result } = renderHook(() => useMetaWearables({ autoConfig: false, onStreamError }));
-    const listeners = getListeners();
-
-    await act(async () => {
-      listeners.onStreamStateChange({ state: "streaming" });
-    });
-
-    await act(async () => {
-      listeners.onStreamError({ type: "thermalCritical" });
-    });
-
-    expect(result.current.lastError).toEqual({ type: "thermalCritical" });
-    expect(onStreamError).toHaveBeenCalledWith({ type: "thermalCritical" });
-    expect(m.stopStream).toHaveBeenCalled();
-  });
-
-  it("onStreamError does NOT auto-stop if already stopped", async () => {
+  it("onDeviceSessionStateChange cleans up stopped sessions", async () => {
     const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
     const listeners = getListeners();
 
     await act(async () => {
-      listeners.onStreamError({ type: "timeout" });
+      listeners.onDeviceSessionStateChange({ sessionId: "s1", state: "started" });
     });
 
-    expect(result.current.lastError).toEqual({ type: "timeout" });
-    expect(m.stopStream).not.toHaveBeenCalled();
+    expect(result.current.deviceSessionStates).toEqual({ s1: "started" });
+
+    await act(async () => {
+      listeners.onDeviceSessionStateChange({ sessionId: "s1", state: "stopped" });
+    });
+
+    expect(result.current.deviceSessionStates).toEqual({});
+  });
+
+  it("onDeviceSessionError updates error map", async () => {
+    const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
+    const listeners = getListeners();
+
+    await act(async () => {
+      listeners.onDeviceSessionError({
+        sessionId: "s1",
+        error: "noEligibleDevice",
+        message: "No device available",
+      });
+    });
+
+    expect(result.current.deviceSessionErrors).toEqual({
+      s1: { error: "noEligibleDevice", message: "No device available" },
+    });
+  });
+
+  it("onCapabilityStateChange updates map", async () => {
+    const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
+    const listeners = getListeners();
+
+    await act(async () => {
+      listeners.onCapabilityStateChange({ sessionId: "s1", state: "active" });
+    });
+
+    expect(result.current.capabilityStates).toEqual({ s1: "active" });
   });
 
   it("onLinkStateChange handles 'connecting' state", async () => {
@@ -473,20 +456,6 @@ describe("events", () => {
     });
 
     expect(result.current.permissionStatus).toBe("granted");
-  });
-
-  it("onDeviceSessionStateChange updates map", async () => {
-    const { result } = renderHook(() => useMetaWearables({ autoConfig: false }));
-    const listeners = getListeners();
-
-    await act(async () => {
-      listeners.onDeviceSessionStateChange({
-        deviceId: "dev-1",
-        sessionState: "running",
-      });
-    });
-
-    expect(result.current.deviceSessionStates).toEqual({ "dev-1": "running" });
   });
 
   it("onCompatibilityChange updates device in list", async () => {
@@ -540,7 +509,10 @@ describe("events", () => {
 
     const { unmount } = renderHook(() => useMetaWearables({ autoConfig: false }));
 
-    expect(removeFns.length).toBe(10);
+    // 12 events: registration, devices, linkState, streamState, videoFrame,
+    // photoCaptured, streamError, permissionStatus, compatibility,
+    // deviceSessionState, deviceSessionError, capabilityState
+    expect(removeFns.length).toBe(12);
 
     unmount();
 

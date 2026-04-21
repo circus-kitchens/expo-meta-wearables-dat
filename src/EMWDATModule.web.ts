@@ -42,22 +42,41 @@ class EMWDATWebModule extends NativeModule<EMWDATModuleEvents> {
   getDevice(): Promise<null> {
     unsupported();
   }
-  getStreamState(): Promise<string> {
+
+  // Session-based streaming
+  createSession(): Promise<string> {
     unsupported();
   }
-  startStream(): Promise<void> {
+  startSession(): Promise<void> {
     unsupported();
   }
-  stopStream(): Promise<void> {
+  stopSession(): Promise<void> {
+    unsupported();
+  }
+  addStreamToSession(): Promise<void> {
+    unsupported();
+  }
+  removeStreamFromSession(): Promise<void> {
     unsupported();
   }
   capturePhoto(): Promise<void> {
     unsupported();
   }
-  createMockDevice(): Promise<string> {
+
+  // Mock device kit
+  enableMockDeviceKit(): Promise<void> {
     unsupported();
   }
-  removeMockDevice(): Promise<void> {
+  disableMockDeviceKit(): Promise<void> {
+    unsupported();
+  }
+  isMockDeviceKitEnabled(): Promise<boolean> {
+    unsupported();
+  }
+  pairMockDevice(): Promise<string> {
+    unsupported();
+  }
+  unpairMockDevice(): Promise<void> {
     unsupported();
   }
   getMockDevices(): Promise<string[]> {
@@ -85,6 +104,15 @@ class EMWDATWebModule extends NativeModule<EMWDATModuleEvents> {
     unsupported();
   }
   mockDeviceSetCapturedImage(): Promise<void> {
+    unsupported();
+  }
+  mockDeviceSetCameraFeedFromCamera(): Promise<void> {
+    unsupported();
+  }
+  mockSetPermissionStatus(): Promise<void> {
+    unsupported();
+  }
+  mockSetPermissionRequestResult(): Promise<void> {
     unsupported();
   }
 }
@@ -133,22 +161,41 @@ export async function getDevices(): Promise<never[]> {
 export async function getDevice(): Promise<null> {
   unsupported();
 }
-export async function getStreamState(): Promise<never> {
+
+// Session-based streaming
+export async function createSession(): Promise<never> {
   unsupported();
 }
-export async function startStream(): Promise<void> {
+export async function startSession(): Promise<void> {
   unsupported();
 }
-export async function stopStream(): Promise<void> {
+export async function stopSession(): Promise<void> {
+  unsupported();
+}
+export async function addStreamToSession(): Promise<void> {
+  unsupported();
+}
+export async function removeStreamFromSession(): Promise<void> {
   unsupported();
 }
 export async function capturePhoto(): Promise<void> {
   unsupported();
 }
-export async function createMockDevice(): Promise<never> {
+
+// Mock device kit
+export async function enableMockDeviceKit(): Promise<void> {
   unsupported();
 }
-export async function removeMockDevice(): Promise<void> {
+export async function disableMockDeviceKit(): Promise<void> {
+  unsupported();
+}
+export async function isMockDeviceKitEnabled(): Promise<never> {
+  unsupported();
+}
+export async function pairMockDevice(): Promise<never> {
+  unsupported();
+}
+export async function unpairMockDevice(): Promise<void> {
   unsupported();
 }
 export async function getMockDevices(): Promise<never> {
@@ -176,5 +223,14 @@ export async function mockDeviceSetCameraFeed(): Promise<void> {
   unsupported();
 }
 export async function mockDeviceSetCapturedImage(): Promise<void> {
+  unsupported();
+}
+export async function mockDeviceSetCameraFeedFromCamera(): Promise<void> {
+  unsupported();
+}
+export async function mockSetPermissionStatus(): Promise<void> {
+  unsupported();
+}
+export async function mockSetPermissionRequestResult(): Promise<void> {
   unsupported();
 }

@@ -1,44 +1,56 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
+  CameraFacing,
+  CapabilityState,
   Compatibility,
   Device,
   DeviceIdentifier,
+  DeviceSessionErrorCode,
+  DeviceSessionState,
   LogLevel,
+  MockDeviceKitConfig,
   Permission,
   PermissionStatus,
   PhotoCaptureFormat,
   RegistrationState,
-  SessionState,
   StreamSessionConfig,
-  StreamSessionError,
-  StreamSessionState,
   UseMetaWearablesOptions,
   UseMetaWearablesReturn,
 } from "./EMWDAT.types";
 import {
   addListener,
+  addStreamToSession as nativeAddStreamToSession,
   capturePhoto as nativeCapturePhoto,
   checkPermissionStatus as nativeCheckPermissionStatus,
   configure as nativeConfigure,
+  createSession as nativeCreateSession,
+  disableMockDeviceKit as nativeDisableMockDeviceKit,
+  enableMockDeviceKit as nativeEnableMockDeviceKit,
   getDevice as nativeGetDevice,
   getDevices as nativeGetDevices,
   getRegistrationStateAsync as nativeGetRegistrationStateAsync,
-  getStreamState as nativeGetStreamState,
+  isMockDeviceKitEnabled as nativeIsMockDeviceKitEnabled,
+  mockDeviceSetCameraFeedFromCamera as nativeMockDeviceSetCameraFeedFromCamera,
+  mockSetPermissionRequestResult as nativeMockSetPermissionRequestResult,
+  mockSetPermissionStatus as nativeMockSetPermissionStatus,
+  pairMockDevice as nativePairMockDevice,
+  removeStreamFromSession as nativeRemoveStreamFromSession,
   requestPermission as nativeRequestPermission,
   setLogLevel as nativeSetLogLevel,
   startRegistration as nativeStartRegistration,
-  startStream as nativeStartStream,
+  startSession as nativeStartSession,
   startUnregistration as nativeStartUnregistration,
-  stopStream as nativeStopStream,
+  stopSession as nativeStopSession,
+  unpairMockDevice as nativeUnpairMockDevice,
 } from "./EMWDATModule";
 
 /**
  * React hook for interacting with Meta Wearables glasses.
  *
  * Provides state management, event handling, and validated actions
- * for registration, permissions, device management, video streaming,
- * and photo capture.
+ * for registration, permissions, device management, session-based
+ * video streaming, and photo capture.
  *
  * @example
  * ```tsx
@@ -46,9 +58,9 @@ import {
  *   isConfigured,
  *   registrationState,
  *   devices,
- *   streamState,
- *   startRegistration,
- *   startStream,
+ *   createSession,
+ *   startSession,
+ *   addStreamToSession,
  *   capturePhoto,
  * } = useMetaWearables({
  *   onRegistrationStateChange: (state) => console.log('Registration:', state),
@@ -69,7 +81,6 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
   const isConfiguredRef = useRef(false);
   const registrationStateRef = useRef<RegistrationState>("unavailable");
   const permissionStatusRef = useRef<PermissionStatus>("denied");
-  const streamStateRef = useRef<StreamSessionState>("stopped");
 
   // ---------------------------------------------------------------------------
   // State — drives re-renders
@@ -81,11 +92,13 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
   const [registrationState, setRegistrationState] = useState<RegistrationState>("unavailable");
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>("denied");
   const [devices, setDevices] = useState<Device[]>([]);
-  const [streamState, setStreamState] = useState<StreamSessionState>("stopped");
-  const [lastError, setLastError] = useState<StreamSessionError | null>(null);
   const [deviceSessionStates, setDeviceSessionStates] = useState<
-    Record<DeviceIdentifier, SessionState>
+    Record<string, DeviceSessionState>
   >({});
+  const [deviceSessionErrors, setDeviceSessionErrors] = useState<
+    Record<string, { error: DeviceSessionErrorCode; message?: string }>
+  >({});
+  const [capabilityStates, setCapabilityStates] = useState<Record<string, CapabilityState>>({});
 
   // Sync helpers — update both ref and state
   const syncIsConfigured = useCallback((v: boolean) => {
@@ -103,11 +116,6 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
     setPermissionStatus(v);
   }, []);
 
-  const syncStreamState = useCallback((v: StreamSessionState) => {
-    streamStateRef.current = v;
-    setStreamState(v);
-  }, []);
-
   // ---------------------------------------------------------------------------
   // Event subscriptions — single effect, empty deps (refs keep values fresh)
   // ---------------------------------------------------------------------------
@@ -118,7 +126,7 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
         syncRegistrationState(e.state);
         callbacksRef.current.onRegistrationStateChange?.(e.state);
 
-        // Auto-sync permission, devices, and stream status on registration change
+        // Auto-sync permission and devices on registration change
         if (e.state === "registered") {
           nativeCheckPermissionStatus("camera")
             .then((status) => syncPermissionStatus(status))
@@ -128,8 +136,9 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
             .catch(() => {});
         } else {
           syncPermissionStatus("denied");
-          syncStreamState("stopped");
           setDeviceSessionStates({});
+          setDeviceSessionErrors({});
+          setCapabilityStates({});
         }
       }),
 
@@ -143,7 +152,6 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
       }),
 
       addListener("onStreamStateChange", (e) => {
-        syncStreamState(e.state);
         callbacksRef.current.onStreamStateChange?.(e.state);
       }),
 
@@ -156,16 +164,7 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
       }),
 
       addListener("onStreamError", (e) => {
-        setLastError(e);
         callbacksRef.current.onStreamError?.(e);
-
-        // Auto-stop only if actively streaming — ignore errors during teardown
-        const st = streamStateRef.current;
-        if (st !== "stopped" && st !== "stopping") {
-          nativeStopStream()
-            .catch(() => {})
-            .finally(() => syncStreamState("stopped"));
-        }
       }),
 
       addListener("onPermissionStatusChange", (e) => {
@@ -189,12 +188,44 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
       addListener("onDeviceSessionStateChange", (e) => {
         setDeviceSessionStates((prev) => ({
           ...prev,
-          [e.deviceId]: e.sessionState as SessionState,
+          [e.sessionId]: e.state,
         }));
-        callbacksRef.current.onDeviceSessionStateChange?.(
-          e.deviceId,
-          e.sessionState as SessionState
-        );
+        callbacksRef.current.onDeviceSessionStateChange?.(e.sessionId, e.state);
+
+        // Clean up stopped sessions from state
+        if (e.state === "stopped") {
+          setDeviceSessionStates((prev) => {
+            const next = { ...prev };
+            delete next[e.sessionId];
+            return next;
+          });
+          setDeviceSessionErrors((prev) => {
+            const next = { ...prev };
+            delete next[e.sessionId];
+            return next;
+          });
+          setCapabilityStates((prev) => {
+            const next = { ...prev };
+            delete next[e.sessionId];
+            return next;
+          });
+        }
+      }),
+
+      addListener("onDeviceSessionError", (e) => {
+        setDeviceSessionErrors((prev) => ({
+          ...prev,
+          [e.sessionId]: { error: e.error, message: e.message },
+        }));
+        callbacksRef.current.onDeviceSessionError?.(e.sessionId, e.error, e.message);
+      }),
+
+      addListener("onCapabilityStateChange", (e) => {
+        setCapabilityStates((prev) => ({
+          ...prev,
+          [e.sessionId]: e.state,
+        }));
+        callbacksRef.current.onCapabilityStateChange?.(e.sessionId, e.state);
       }),
     ];
 
@@ -221,15 +252,13 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
       syncIsConfigured(true);
 
       // Sync initial state
-      const [regState, deviceList, streamSt] = await Promise.all([
+      const [regState, deviceList] = await Promise.all([
         nativeGetRegistrationStateAsync(),
         nativeGetDevices(),
-        nativeGetStreamState(),
       ]);
 
       syncRegistrationState(regState);
       setDevices(deviceList);
-      syncStreamState(streamSt);
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       setConfigError(error);
@@ -237,7 +266,7 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
     } finally {
       setIsConfiguring(false);
     }
-  }, [logLevel, syncIsConfigured, syncRegistrationState, syncStreamState]);
+  }, [logLevel, syncIsConfigured, syncRegistrationState]);
 
   // Auto-configure on mount
   useEffect(() => {
@@ -310,21 +339,31 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
     return deviceList;
   }, []);
 
-  const startStream = useCallback(
-    async (config?: Partial<StreamSessionConfig>) => {
-      if (!isConfiguredRef.current) {
-        throw new Error("SDK not configured. Call configure() first.");
-      }
-      if (registrationStateRef.current !== "registered") {
-        throw new Error("Must be registered before streaming.");
-      }
-      if (streamStateRef.current === "streaming" || streamStateRef.current === "starting") {
-        throw new Error("Stream already active.");
-      }
+  // ---------------------------------------------------------------------------
+  // Session-based streaming actions
+  // ---------------------------------------------------------------------------
 
-      // Always verify permission with native SDK before starting — DAT permissions
-      // are per-session and may be revoked after stopping a stream (matches Meta's
-      // CameraAccess sample app pattern: check → request → start).
+  const createSession = useCallback(async (deviceId?: DeviceIdentifier): Promise<string> => {
+    if (!isConfiguredRef.current) {
+      throw new Error("SDK not configured. Call configure() first.");
+    }
+    if (registrationStateRef.current !== "registered") {
+      throw new Error("Must be registered before creating a session.");
+    }
+    return nativeCreateSession(deviceId);
+  }, []);
+
+  const startSession = useCallback(async (sessionId: string): Promise<void> => {
+    await nativeStartSession(sessionId);
+  }, []);
+
+  const stopSession = useCallback(async (sessionId: string): Promise<void> => {
+    await nativeStopSession(sessionId);
+  }, []);
+
+  const addStreamToSession = useCallback(
+    async (sessionId: string, config?: Partial<StreamSessionConfig>): Promise<void> => {
+      // Verify camera permission before adding stream
       const status = await nativeCheckPermissionStatus("camera");
       if (status !== "granted") {
         const requested = await nativeRequestPermission("camera");
@@ -335,25 +374,63 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
       } else {
         syncPermissionStatus("granted");
       }
-
-      await nativeStartStream(config);
+      await nativeAddStreamToSession(sessionId, config);
     },
     [syncPermissionStatus]
   );
 
-  const stopStream = useCallback(async () => {
-    if (streamStateRef.current === "stopped") {
-      return;
-    }
-    await nativeStopStream();
+  const removeStreamFromSession = useCallback(async (sessionId: string): Promise<void> => {
+    await nativeRemoveStreamFromSession(sessionId);
   }, []);
 
   const capturePhoto = useCallback(async (format?: PhotoCaptureFormat) => {
-    if (streamStateRef.current !== "streaming") {
-      throw new Error("Cannot capture photo — stream is not active.");
-    }
     await nativeCapturePhoto(format);
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // Mock device kit actions
+  // ---------------------------------------------------------------------------
+
+  const enableMockDeviceKit = useCallback(async (config?: MockDeviceKitConfig): Promise<void> => {
+    await nativeEnableMockDeviceKit(config);
+  }, []);
+
+  const disableMockDeviceKit = useCallback(async (): Promise<void> => {
+    await nativeDisableMockDeviceKit();
+  }, []);
+
+  const isMockDeviceKitEnabled = useCallback(async (): Promise<boolean> => {
+    return nativeIsMockDeviceKitEnabled();
+  }, []);
+
+  const pairMockDevice = useCallback(async (): Promise<string> => {
+    return nativePairMockDevice();
+  }, []);
+
+  const unpairMockDevice = useCallback(async (deviceId: string): Promise<void> => {
+    await nativeUnpairMockDevice(deviceId);
+  }, []);
+
+  const mockSetPermissionStatusAction = useCallback(
+    async (permission: Permission, status: PermissionStatus): Promise<void> => {
+      await nativeMockSetPermissionStatus(permission, status);
+    },
+    []
+  );
+
+  const mockSetPermissionRequestResultAction = useCallback(
+    async (permission: Permission, result: PermissionStatus): Promise<void> => {
+      await nativeMockSetPermissionRequestResult(permission, result);
+    },
+    []
+  );
+
+  const mockDeviceSetCameraFeedFromCameraAction = useCallback(
+    async (id: string, facing: CameraFacing): Promise<void> => {
+      await nativeMockDeviceSetCameraFeedFromCamera(id, facing);
+    },
+    []
+  );
 
   // ---------------------------------------------------------------------------
   // Return
@@ -367,21 +444,42 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
     registrationState,
     permissionStatus,
     devices,
-    streamState,
-    lastError,
     deviceSessionStates,
+    deviceSessionErrors,
+    capabilityStates,
 
-    // Actions
+    // Actions — configuration
     configure,
     setLogLevel: setLogLevelAction,
+
+    // Actions — registration
     startRegistration,
     startUnregistration,
+
+    // Actions — permissions
     checkPermissionStatus: checkPermissionStatusAction,
     requestPermission: requestPermissionAction,
+
+    // Actions — devices
     getDevice,
     refreshDevices,
-    startStream,
-    stopStream,
+
+    // Actions — session-based streaming
+    createSession,
+    startSession,
+    stopSession,
+    addStreamToSession,
+    removeStreamFromSession,
     capturePhoto,
+
+    // Actions — mock device kit
+    enableMockDeviceKit,
+    disableMockDeviceKit,
+    isMockDeviceKitEnabled,
+    pairMockDevice,
+    unpairMockDevice,
+    mockSetPermissionStatus: mockSetPermissionStatusAction,
+    mockSetPermissionRequestResult: mockSetPermissionRequestResultAction,
+    mockDeviceSetCameraFeedFromCamera: mockDeviceSetCameraFeedFromCameraAction,
   };
 }

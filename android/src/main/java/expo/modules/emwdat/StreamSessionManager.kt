@@ -7,18 +7,13 @@ import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
 import androidx.exifinterface.media.ExifInterface
-import com.meta.wearable.dat.camera.StreamSession
-import com.meta.wearable.dat.camera.startStreamSession
+import com.meta.wearable.dat.camera.Stream
 import com.meta.wearable.dat.camera.types.CaptureError
 import com.meta.wearable.dat.camera.types.PhotoData
 import com.meta.wearable.dat.camera.types.StreamConfiguration
 import com.meta.wearable.dat.camera.types.StreamSessionState
 import com.meta.wearable.dat.camera.types.VideoFrame
 import com.meta.wearable.dat.camera.types.VideoQuality
-import com.meta.wearable.dat.core.Wearables
-import com.meta.wearable.dat.core.selectors.AutoDeviceSelector
-import com.meta.wearable.dat.core.selectors.SpecificDeviceSelector
-import com.meta.wearable.dat.core.types.DeviceIdentifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -31,15 +26,13 @@ typealias FrameCallback = (Bitmap) -> Unit
 object StreamSessionManager {
     private val logger = EMWDATLogger
 
-    private var streamSession: StreamSession? = null
-    private var videoJob: Job? = null
-    private var stateJob: Job? = null
-    private var streamStartTimeoutJob: Job? = null
-    private var scope: CoroutineScope? = null
+    // Active streams keyed by sessionId
+    private val streams: MutableMap<String, Stream> = mutableMapOf()
+    private val videoJobs: MutableMap<String, Job> = mutableMapOf()
+    private val stateJobs: MutableMap<String, Job> = mutableMapOf()
+    private val errorJobs: MutableMap<String, Job> = mutableMapOf()
 
-    var currentState: String = "stopped"
-        private set
-    private var previousRawState: StreamSessionState? = null
+    private var scope: CoroutineScope? = null
 
     // Callbacks
     private var eventEmitter: EventEmitter? = null
@@ -65,13 +58,11 @@ object StreamSessionManager {
         this.frameCallbackOwner = null
     }
 
-    // MARK: - Stream Control
+    // MARK: - Stream Capability Control
 
-    fun startStream(context: Context, config: Map<String, Any>, deviceId: String?) {
-        if (streamSession != null) {
-            logger.warn("StreamSession", "Stream already active, closing previous session")
-            stopStream()
-        }
+    fun addStreamToSession(sessionId: String, config: Map<String, Any>) {
+        val session = WearablesManager.getSession(sessionId)
+            ?: throw IllegalArgumentException("Session not found: $sessionId")
 
         val videoQuality = when (config["resolution"] as? String) {
             "high" -> VideoQuality.HIGH
@@ -79,91 +70,82 @@ object StreamSessionManager {
             else -> VideoQuality.LOW
         }
         val frameRate = (config["frameRate"] as? Number)?.toInt() ?: 15
-        val streamConfig = StreamConfiguration(videoQuality, frameRate)
+        val compressVideo = config["compressVideo"] as? Boolean ?: false
 
-        val deviceSelector = if (deviceId != null) {
-            SpecificDeviceSelector(DeviceIdentifier(deviceId))
-        } else {
-            AutoDeviceSelector()
-        }
+        val streamConfig = StreamConfiguration(videoQuality, frameRate, compressVideo)
 
-        logger.info("StreamSession", "Starting stream", mapOf(
+        logger.info("StreamSession", "Adding stream to session", mapOf(
+            "sessionId" to sessionId,
             "quality" to videoQuality.toString(),
             "frameRate" to frameRate,
-            "deviceId" to (deviceId ?: "auto")
+            "compressVideo" to compressVideo
         ))
 
-        val session = Wearables.startStreamSession(context, deviceSelector, streamConfig)
-        streamSession = session
+        val stream = session.addStream(streamConfig)
+        streams[sessionId] = stream
+
+        val currentScope = scope ?: throw IllegalStateException("Module scope not available")
 
         // Collect video frames
-        videoJob = scope?.launch {
-            session.videoStream.collect { frame ->
-                handleVideoFrame(frame)
+        videoJobs[sessionId] = currentScope.launch {
+            stream.videoStream.collect { frame ->
+                handleVideoFrame(sessionId, frame)
             }
         }
 
         // Collect state changes
-        stateJob = scope?.launch {
-            session.state.collect { state ->
-                handleStateChange(state)
+        stateJobs[sessionId] = currentScope.launch {
+            stream.state.collect { state ->
+                handleStateChange(sessionId, state)
             }
         }
 
-        // Timeout: if state doesn't reach STREAMING within 10s, emit error
-        streamStartTimeoutJob = scope?.launch {
-            kotlinx.coroutines.delay(10_000)
-            if (currentState == "starting") {
-                val errorMsg = "Stream failed to start. State stuck at '$currentState'. " +
-                    "If using a mock device, ensure the video feed is HEVC (H.265) encoded. " +
-                    "The SDK requires video/hevc codec — H.264 (AVC) videos will be rejected."
-                logger.error("StreamSession", errorMsg)
-                emitEvent("onStreamError", mapOf(
-                    "type" to "timeout",
-                    "message" to errorMsg
+        // Collect errors
+        errorJobs[sessionId] = currentScope.launch {
+            stream.errorStream.collect { error ->
+                logger.error("StreamSession", "Stream error", mapOf(
+                    "sessionId" to sessionId,
+                    "error" to error.toString()
                 ))
+                emitEvent("onStreamError", mapOf("type" to "internalError"))
             }
         }
 
-        logger.info("StreamSession", "Stream session started")
+        // Emit capability state
+        emitEvent("onCapabilityStateChange", mapOf(
+            "sessionId" to sessionId,
+            "state" to "active"
+        ))
+
+        logger.info("StreamSession", "Stream added to session", mapOf("sessionId" to sessionId))
     }
 
-    fun stopStream() {
-        logger.info("StreamSession", "Stopping stream")
-        videoJob?.cancel()
-        stateJob?.cancel()
-        streamStartTimeoutJob?.cancel()
-        videoJob = null
-        stateJob = null
-        streamStartTimeoutJob = null
-        streamSession?.close()
-        streamSession = null
-        val previousState = currentState
-        currentState = "stopped"
-        previousRawState = null
-        if (previousState != "stopped") {
-            emitEvent("onStreamStateChange", mapOf("state" to "stopped"))
-        }
-        logger.info("StreamSession", "Stream stopped")
+    fun removeStreamFromSession(sessionId: String) {
+        val session = WearablesManager.getSession(sessionId)
+        session?.removeStream()
+        destroyStream(sessionId)
+
+        emitEvent("onCapabilityStateChange", mapOf(
+            "sessionId" to sessionId,
+            "state" to "stopped"
+        ))
+
+        logger.info("StreamSession", "Stream removed from session", mapOf("sessionId" to sessionId))
     }
 
     suspend fun capturePhoto(context: Context, format: String) {
-        val session = streamSession
+        // Find the first active stream
+        val stream = streams.values.firstOrNull()
             ?: throw Exception("No active stream session")
 
-        if (currentState != "streaming") {
-            throw Exception("Cannot capture photo - state is '$currentState', expected 'streaming'")
-        }
-
         logger.info("StreamSession", "Capturing photo", mapOf("requestedFormat" to format))
-        val result = session.capturePhoto()
-            ?: throw Exception("capturePhoto returned null")
+        val result = stream.capturePhoto()
 
         result.fold(
             onSuccess = { photoData ->
                 handlePhotoCapture(context, photoData, format)
             },
-            onFailure = { error, _ ->
+            onFailure = { error ->
                 val msg = when (error) {
                     is CaptureError.DeviceDisconnected -> "Device disconnected"
                     is CaptureError.NotStreaming -> "Not streaming"
@@ -178,7 +160,18 @@ object StreamSessionManager {
 
     // MARK: - Frame Handling
 
-    private fun handleVideoFrame(videoFrame: VideoFrame) {
+    private fun handleVideoFrame(sessionId: String, videoFrame: VideoFrame) {
+        // If frame is compressed HEVC, emit metadata only (can't decode to bitmap)
+        if (videoFrame.isCompressed) {
+            emitEvent("onVideoFrame", mapOf(
+                "timestamp" to System.currentTimeMillis(),
+                "width" to videoFrame.width,
+                "height" to videoFrame.height,
+                "isCompressed" to true
+            ))
+            return
+        }
+
         val buffer = videoFrame.buffer
         val dataSize = buffer.remaining()
         val byteArray = ByteArray(dataSize)
@@ -202,7 +195,8 @@ object StreamSessionManager {
         emitEvent("onVideoFrame", mapOf(
             "timestamp" to System.currentTimeMillis(),
             "width" to videoFrame.width,
-            "height" to videoFrame.height
+            "height" to videoFrame.height,
+            "isCompressed" to false
         ))
     }
 
@@ -224,49 +218,14 @@ object StreamSessionManager {
 
     // MARK: - State Handling
 
-    private fun handleStateChange(state: StreamSessionState) {
+    private fun handleStateChange(sessionId: String, state: StreamSessionState) {
         val mapped = mapStreamState(state)
-        val previousState = currentState
-        val prevRaw = previousRawState
         logger.info("StreamSession", "State changed", mapOf(
-            "from" to previousState,
-            "to" to mapped
+            "sessionId" to sessionId,
+            "state" to mapped
         ))
 
-        currentState = mapped
-        previousRawState = state
         emitEvent("onStreamStateChange", mapOf("state" to mapped))
-
-        // Cancel timeout once streaming is active
-        if (state == StreamSessionState.STREAMING) {
-            streamStartTimeoutJob?.cancel()
-            streamStartTimeoutJob = null
-        }
-
-        // Detect unexpected terminal transitions
-        if (prevRaw != null &&
-            (state == StreamSessionState.STOPPED || state == StreamSessionState.CLOSED)) {
-            val isUnexpected = when (prevRaw) {
-                // Was streaming but skipped STOPPING
-                StreamSessionState.STREAMING -> true
-                // Stream failed to start
-                StreamSessionState.STARTING, StreamSessionState.STARTED -> true
-                else -> false
-            }
-            if (isUnexpected) {
-                logger.error("StreamSession", "Unexpected stream stop", mapOf(
-                    "previousRawState" to prevRaw.toString(),
-                    "newState" to state.toString()
-                ))
-                emitEvent("onStreamError", mapOf("type" to "internalError"))
-            }
-        }
-
-        // Only auto-stop if transitioning from an active state (not the initial emission)
-        if ((state == StreamSessionState.STOPPED || state == StreamSessionState.CLOSED) &&
-            previousState != "stopped") {
-            stopStream()
-        }
     }
 
     // MARK: - Photo Handling
@@ -367,15 +326,28 @@ object StreamSessionManager {
         StreamSessionState.CLOSED -> "stopped"
     }
 
+    // MARK: - Cleanup
+
+    private fun destroyStream(sessionId: String) {
+        videoJobs[sessionId]?.cancel()
+        videoJobs.remove(sessionId)
+        stateJobs[sessionId]?.cancel()
+        stateJobs.remove(sessionId)
+        errorJobs[sessionId]?.cancel()
+        errorJobs.remove(sessionId)
+        streams.remove(sessionId)
+        logger.debug("StreamSession", "Stream destroyed", mapOf("sessionId" to sessionId))
+    }
+
+    fun destroy() {
+        for (sessionId in streams.keys.toList()) {
+            destroyStream(sessionId)
+        }
+    }
+
     // MARK: - Event Emission
 
     private fun emitEvent(name: String, body: Map<String, Any>) {
         eventEmitter?.invoke(name, body)
-    }
-
-    // MARK: - Cleanup
-
-    fun destroy() {
-        stopStream()
     }
 }

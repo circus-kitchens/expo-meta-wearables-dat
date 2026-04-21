@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/npm/l/expo-meta-wearables-dat)](./LICENSE)
 ![platform: iOS | Android](https://img.shields.io/badge/platform-iOS%20%7C%20Android-blue)
 
-Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart glasses) into React Native apps. Provides device registration, permissions, camera streaming, photo capture, and a React hook — bridged from the official Meta Wearables DAT SDK on both iOS and Android.
+Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart glasses) into React Native apps. Provides device registration, permissions, session-based camera streaming, photo capture, and a React hook — bridged from the official Meta Wearables DAT SDK 0.6 on both iOS and Android.
 
 > **Official SDK docs:** [Meta Wearables DAT — Developer Documentation](https://wearables.developer.meta.com/docs/develop)
 >
@@ -23,10 +23,11 @@ Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart gl
 - Device registration / unregistration via Meta AI app
 - Permission management (camera)
 - Device discovery and link state monitoring
-- Live camera video streaming with native view
+- Session-based camera streaming with native view
+- Compressed HEVC video streaming (Android)
 - Photo capture (JPEG / HEIC)
 - `useMetaWearables` React hook with full state management
-- Mock device simulation for testing (debug builds)
+- Mock device simulation for testing (debug builds) with permission mocking and phone camera feed
 - Expo config plugin (auto-configures Info.plist, AndroidManifest, URL schemes, deployment target)
 
 ## Compatibility
@@ -39,11 +40,13 @@ Expo native module for integrating **Meta Wearables DAT** (Ray-Ban Meta smart gl
 | Android          | API 31+  |
 | Xcode            | 16+      |
 | Swift            | 5.9+     |
+| DAT SDK          | 0.6      |
 | New Architecture | Untested |
 
 ## Supported Devices
 
 - Ray-Ban Meta (verified)
+- Ray-Ban Meta Optics (untested)
 - Meta Ray-Ban Display (untested)
 - Oakley Meta HSTN / Vanguard (untested)
 
@@ -150,36 +153,51 @@ npx expo prebuild --clean
 ```tsx
 import { View, Button, Text } from "react-native";
 import { useMetaWearables, EMWDATStreamView } from "expo-meta-wearables-dat";
+import { useState } from "react";
 
 export default function App() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const {
     isConfigured,
     registrationState,
     devices,
-    streamState,
     startRegistration,
-    startStream,
-    stopStream,
+    createSession,
+    startSession,
+    stopSession,
+    addStreamToSession,
     capturePhoto,
   } = useMetaWearables({
     onPhotoCaptured: (photo) => console.log("Photo saved:", photo.filePath),
+    onStreamStateChange: (state) => console.log("Stream:", state),
   });
+
+  const handleStartStream = async () => {
+    const id = await createSession();
+    setSessionId(id);
+    await startSession(id);
+    await addStreamToSession(id, { resolution: "medium", frameRate: 24 });
+  };
+
+  const handleStopStream = async () => {
+    if (sessionId) {
+      await stopSession(sessionId);
+      setSessionId(null);
+    }
+  };
 
   return (
     <View style={{ flex: 1, padding: 20, paddingTop: 60, gap: 10 }}>
       <Text>Configured: {String(isConfigured)}</Text>
       <Text>Registration: {registrationState}</Text>
       <Text>Devices: {devices.length}</Text>
-      <Text>Stream: {streamState}</Text>
 
       <Button title="Register" onPress={() => startRegistration()} />
-      <Button title="Start Stream" onPress={() => startStream()} />
-      <Button title="Stop Stream" onPress={() => stopStream()} />
+      <Button title="Start Stream" onPress={handleStartStream} />
+      <Button title="Stop Stream" onPress={handleStopStream} />
       <Button title="Capture Photo" onPress={() => capturePhoto("jpeg")} />
 
-      {streamState === "streaming" && (
-        <EMWDATStreamView isActive resizeMode="contain" style={{ flex: 1 }} />
-      )}
+      <EMWDATStreamView isActive={!!sessionId} resizeMode="contain" style={{ flex: 1 }} />
     </View>
   );
 }
@@ -193,50 +211,63 @@ React hook that manages the full lifecycle of Meta Wearables integration.
 
 **Options** (`UseMetaWearablesOptions`):
 
-| Option                       | Type                                | Default  | Description                      |
-| ---------------------------- | ----------------------------------- | -------- | -------------------------------- |
-| `autoConfig`                 | `boolean`                           | `true`   | Auto-call `configure()` on mount |
-| `logLevel`                   | `LogLevel`                          | `"info"` | Initial log level                |
-| `onRegistrationStateChange`  | `(state) => void`                   | —        | Registration state changed       |
-| `onDevicesChange`            | `(devices) => void`                 | —        | Device list updated              |
-| `onLinkStateChange`          | `(deviceId, linkState) => void`     | —        | Device connection changed        |
-| `onStreamStateChange`        | `(state) => void`                   | —        | Stream state changed             |
-| `onVideoFrame`               | `(metadata) => void`                | —        | Video frame received             |
-| `onPhotoCaptured`            | `(photo) => void`                   | —        | Photo captured                   |
-| `onStreamError`              | `(error) => void`                   | —        | Stream error occurred            |
-| `onPermissionStatusChange`   | `(permission, status) => void`      | —        | Permission status changed        |
-| `onCompatibilityChange`      | `(deviceId, compatibility) => void` | —        | Device compatibility changed     |
-| `onDeviceSessionStateChange` | `(deviceId, sessionState) => void`  | —        | Device session state changed     |
+| Option                       | Type                                   | Default  | Description                      |
+| ---------------------------- | -------------------------------------- | -------- | -------------------------------- |
+| `autoConfig`                 | `boolean`                              | `true`   | Auto-call `configure()` on mount |
+| `logLevel`                   | `LogLevel`                             | `"info"` | Initial log level                |
+| `onRegistrationStateChange`  | `(state) => void`                      | —        | Registration state changed       |
+| `onDevicesChange`            | `(devices) => void`                    | —        | Device list updated              |
+| `onLinkStateChange`          | `(deviceId, linkState) => void`        | —        | Device connection changed        |
+| `onStreamStateChange`        | `(state) => void`                      | —        | Stream state changed             |
+| `onVideoFrame`               | `(metadata) => void`                   | —        | Video frame received             |
+| `onPhotoCaptured`            | `(photo) => void`                      | —        | Photo captured                   |
+| `onStreamError`              | `(error) => void`                      | —        | Stream error occurred            |
+| `onPermissionStatusChange`   | `(permission, status) => void`         | —        | Permission status changed        |
+| `onCompatibilityChange`      | `(deviceId, compatibility) => void`    | —        | Device compatibility changed     |
+| `onDeviceSessionStateChange` | `(sessionId, state) => void`           | —        | Device session state changed     |
+| `onDeviceSessionError`       | `(sessionId, error, message?) => void` | —        | Device session error             |
+| `onCapabilityStateChange`    | `(sessionId, state) => void`           | —        | Capability state changed         |
 
 **Returned state:**
 
-| Field                 | Type                           | Description                                                                                        |
-| --------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `isConfigured`        | `boolean`                      | SDK configured                                                                                     |
-| `isConfiguring`       | `boolean`                      | `true` while `configure()` is in progress                                                          |
-| `configError`         | `Error \| null`                | Error from the last `configure()` call, or `null` if successful                                    |
-| `registrationState`   | `RegistrationState`            | `"unavailable"` \| `"available"` \| `"registering"` \| `"registered"`                              |
-| `permissionStatus`    | `PermissionStatus`             | `"granted"` \| `"denied"`                                                                          |
-| `devices`             | `Device[]`                     | Connected devices                                                                                  |
-| `streamState`         | `StreamSessionState`           | `"stopped"` \| `"waitingForDevice"` \| `"starting"` \| `"streaming"` \| `"paused"` \| `"stopping"` |
-| `lastError`           | `StreamSessionError \| null`   | Last stream error                                                                                  |
-| `deviceSessionStates` | `Record<string, SessionState>` | Per-device session states                                                                          |
+| Field                 | Type                                  | Description                  |
+| --------------------- | ------------------------------------- | ---------------------------- |
+| `isConfigured`        | `boolean`                             | SDK configured               |
+| `isConfiguring`       | `boolean`                             | `true` while configuring     |
+| `configError`         | `Error \| null`                       | Error from last `configure`  |
+| `registrationState`   | `RegistrationState`                   | Registration lifecycle state |
+| `permissionStatus`    | `PermissionStatus`                    | `"granted"` \| `"denied"`    |
+| `devices`             | `Device[]`                            | Connected devices            |
+| `deviceSessionStates` | `Record<string, DeviceSessionState>`  | Per-session states           |
+| `deviceSessionErrors` | `Record<string, { error, message? }>` | Per-session errors           |
+| `capabilityStates`    | `Record<string, CapabilityState>`     | Per-session capability state |
 
 **Returned actions:**
 
-| Action                  | Signature                                   | Description                                                   |
-| ----------------------- | ------------------------------------------- | ------------------------------------------------------------- |
-| `configure`             | `() => Promise<void>`                       | Initialize SDK (called automatically if `autoConfig` is true) |
-| `setLogLevel`           | `(level: LogLevel) => void`                 | Change log level                                              |
-| `startRegistration`     | `() => Promise<void>`                       | Open Meta AI app for registration                             |
-| `startUnregistration`   | `() => Promise<void>`                       | Unregister from Meta AI                                       |
-| `checkPermissionStatus` | `(permission) => Promise<PermissionStatus>` | Check permission                                              |
-| `requestPermission`     | `(permission) => Promise<PermissionStatus>` | Request permission                                            |
-| `getDevice`             | `(id) => Promise<Device \| null>`           | Get device by identifier                                      |
-| `refreshDevices`        | `() => Promise<Device[]>`                   | Refresh device list                                           |
-| `startStream`           | `(config?) => Promise<void>`                | Start camera stream                                           |
-| `stopStream`            | `() => Promise<void>`                       | Stop camera stream                                            |
-| `capturePhoto`          | `(format?) => Promise<void>`                | Capture photo (`"jpeg"` \| `"heic"`)                          |
+| Action                              | Signature                                   | Description                        |
+| ----------------------------------- | ------------------------------------------- | ---------------------------------- |
+| `configure`                         | `() => Promise<void>`                       | Initialize SDK                     |
+| `setLogLevel`                       | `(level: LogLevel) => void`                 | Change log level                   |
+| `startRegistration`                 | `() => Promise<void>`                       | Open Meta AI app for registration  |
+| `startUnregistration`               | `() => Promise<void>`                       | Unregister from Meta AI            |
+| `checkPermissionStatus`             | `(permission) => Promise<PermissionStatus>` | Check permission                   |
+| `requestPermission`                 | `(permission) => Promise<PermissionStatus>` | Request permission                 |
+| `getDevice`                         | `(id) => Promise<Device \| null>`           | Get device by identifier           |
+| `refreshDevices`                    | `() => Promise<Device[]>`                   | Refresh device list                |
+| `createSession`                     | `(deviceId?) => Promise<string>`            | Create a device session            |
+| `startSession`                      | `(sessionId) => Promise<void>`              | Start a session                    |
+| `stopSession`                       | `(sessionId) => Promise<void>`              | Stop a session (terminal)          |
+| `addStreamToSession`                | `(sessionId, config?) => Promise<void>`     | Attach camera stream capability    |
+| `removeStreamFromSession`           | `(sessionId) => Promise<void>`              | Remove stream capability           |
+| `capturePhoto`                      | `(format?) => Promise<void>`                | Capture photo                      |
+| `enableMockDeviceKit`               | `(config?) => Promise<void>`                | Enable mock device kit             |
+| `disableMockDeviceKit`              | `() => Promise<void>`                       | Disable mock device kit            |
+| `isMockDeviceKitEnabled`            | `() => Promise<boolean>`                    | Check if mock kit is enabled       |
+| `pairMockDevice`                    | `() => Promise<string>`                     | Pair a mock device                 |
+| `unpairMockDevice`                  | `(deviceId) => Promise<void>`               | Unpair a mock device               |
+| `mockSetPermissionStatus`           | `(permission, status) => Promise<void>`     | Set mock permission status         |
+| `mockSetPermissionRequestResult`    | `(permission, result) => Promise<void>`     | Set mock permission request result |
+| `mockDeviceSetCameraFeedFromCamera` | `(id, facing) => Promise<void>`             | Set mock camera from phone camera  |
 
 ### Module Functions
 
@@ -256,50 +287,52 @@ import {
   getDevice,
   getRegistrationState,
   getRegistrationStateAsync,
-  getStreamState,
-  startStream,
-  stopStream,
+  createSession,
+  startSession,
+  stopSession,
+  addStreamToSession,
+  removeStreamFromSession,
   capturePhoto,
   addListener,
+  // Mock device kit
+  enableMockDeviceKit,
+  disableMockDeviceKit,
+  isMockDeviceKitEnabled,
+  pairMockDevice,
+  unpairMockDevice,
+  getMockDevices,
+  mockDevicePowerOn,
+  mockDevicePowerOff,
+  mockDeviceDon,
+  mockDeviceDoff,
+  mockDeviceFold,
+  mockDeviceUnfold,
+  mockDeviceSetCameraFeed,
+  mockDeviceSetCapturedImage,
+  mockDeviceSetCameraFeedFromCamera,
+  mockSetPermissionStatus,
+  mockSetPermissionRequestResult,
 } from "expo-meta-wearables-dat";
 ```
-
-| Function                    | Signature                                                  |
-| --------------------------- | ---------------------------------------------------------- |
-| `EMWDATModule`              | Raw native module instance (for advanced use)              |
-| `configure`                 | `() => Promise<void>`                                      |
-| `setLogLevel`               | `(level: LogLevel) => void`                                |
-| `getRegistrationState`      | `() => RegistrationState` (sync)                           |
-| `getRegistrationStateAsync` | `() => Promise<RegistrationState>`                         |
-| `startRegistration`         | `() => Promise<void>`                                      |
-| `startUnregistration`       | `() => Promise<void>`                                      |
-| `handleUrl`                 | `(url: string) => Promise<boolean>`                        |
-| `checkPermissionStatus`     | `(permission: Permission) => Promise<PermissionStatus>`    |
-| `requestPermission`         | `(permission: Permission) => Promise<PermissionStatus>`    |
-| `getDevices`                | `() => Promise<Device[]>`                                  |
-| `getDevice`                 | `(identifier: string) => Promise<Device \| null>`          |
-| `getStreamState`            | `() => Promise<StreamSessionState>`                        |
-| `startStream`               | `(config?: Partial<StreamSessionConfig>) => Promise<void>` |
-| `stopStream`                | `() => Promise<void>`                                      |
-| `capturePhoto`              | `(format?: PhotoCaptureFormat) => Promise<void>`           |
-| `addListener`               | `(event, listener) => { remove() } \| null`                |
 
 ### Events
 
 Subscribe via `addListener` or hook callbacks:
 
-| Event                        | Payload                                                     |
-| ---------------------------- | ----------------------------------------------------------- |
-| `onRegistrationStateChange`  | `{ state: RegistrationState }`                              |
-| `onDevicesChange`            | `{ devices: Device[] }`                                     |
-| `onLinkStateChange`          | `{ deviceId: string, linkState: LinkState }`                |
-| `onStreamStateChange`        | `{ state: StreamSessionState }`                             |
-| `onVideoFrame`               | `{ timestamp, width, height }`                              |
-| `onPhotoCaptured`            | `{ filePath, format, timestamp, width?, height?, base64? }` |
-| `onStreamError`              | `StreamSessionError` (discriminated union)                  |
-| `onPermissionStatusChange`   | `{ permission: Permission, status: PermissionStatus }`      |
-| `onCompatibilityChange`      | `{ deviceId: string, compatibility: Compatibility }`        |
-| `onDeviceSessionStateChange` | `{ deviceId: string, sessionState: SessionState }`          |
+| Event                        | Payload                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `onRegistrationStateChange`  | `{ state: RegistrationState }`                                           |
+| `onDevicesChange`            | `{ devices: Device[] }`                                                  |
+| `onLinkStateChange`          | `{ deviceId: string, linkState: LinkState }`                             |
+| `onStreamStateChange`        | `{ state: StreamSessionState }`                                          |
+| `onVideoFrame`               | `{ timestamp, width, height, isCompressed? }`                            |
+| `onPhotoCaptured`            | `{ filePath, format, timestamp, width?, height?, base64? }`              |
+| `onStreamError`              | `StreamSessionError` (discriminated union)                               |
+| `onPermissionStatusChange`   | `{ permission: Permission, status: PermissionStatus }`                   |
+| `onCompatibilityChange`      | `{ deviceId: string, compatibility: Compatibility }`                     |
+| `onDeviceSessionStateChange` | `{ sessionId: string, state: DeviceSessionState }`                       |
+| `onDeviceSessionError`       | `{ sessionId: string, error: DeviceSessionErrorCode, message?: string }` |
+| `onCapabilityStateChange`    | `{ sessionId: string, state: CapabilityState }`                          |
 
 ### `EMWDATStreamView`
 
@@ -320,19 +353,23 @@ Key types exported from the package:
 - `Permission` — `"camera"`
 - `PermissionStatus` — `"granted"` \| `"denied"`
 - `Device` — `{ identifier, name, linkState, deviceType, compatibility }`
-- `StreamSessionConfig` — `{ videoCodec, resolution, frameRate, deviceId? }`
+- `DeviceType` — `"rayBanMeta"` \| `"oakleyMetaHSTN"` \| `"oakleyMetaVanguard"` \| `"metaRayBanDisplay"` \| `"rayBanMetaOptics"` \| `"unknown"`
+- `LinkState` — `"connected"` \| `"disconnected"` \| `"connecting"`
+- `Compatibility` — `"compatible"` \| `"undefined"` \| `"deviceUpdateRequired"` \| `"sdkUpdateRequired"`
+- `DeviceSessionState` — `"idle"` \| `"starting"` \| `"started"` \| `"paused"` \| `"stopping"` \| `"stopped"`
+- `DeviceSessionErrorCode` — `"noEligibleDevice"` \| `"sessionAlreadyStopped"` \| `"sessionAlreadyExists"` \| `"sessionIdle"` \| `"capabilityAlreadyActive"` \| `"capabilityNotFound"` \| `"unexpectedError"`
+- `CapabilityState` — `"active"` \| `"stopped"`
+- `StreamSessionConfig` — `{ videoCodec, resolution, frameRate, deviceId?, compressVideo?, skipAppLaunch? }`
 - `StreamSessionState` — `"stopped"` \| `"waitingForDevice"` \| `"starting"` \| `"streaming"` \| `"paused"` \| `"stopping"`
 - `StreamSessionError` — Discriminated union: `internalError` \| `deviceNotFound` \| `deviceNotConnected` \| `timeout` \| `videoStreamingError` \| `permissionDenied` \| `hingesClosed` \| `thermalCritical`
 - `PhotoData` — `{ filePath, format, timestamp, width?, height?, base64? }`
 - `PhotoCaptureFormat` — `"jpeg"` \| `"heic"`
-- `LinkState` — `"connected"` \| `"disconnected"` \| `"connecting"`
-- `Compatibility` — `"compatible"` \| `"undefined"` \| `"deviceUpdateRequired"` \| `"sdkUpdateRequired"`
-- `DeviceType` — `"rayBanMeta"` \| `"oakleyMetaHSTN"` \| `"oakleyMetaVanguard"` \| `"metaRayBanDisplay"` \| `"unknown"`
-- `SessionState` — `"stopped"` \| `"waitingForDevice"` \| `"running"` \| `"paused"` \| `"unknown"`
+- `VideoFrameMetadata` — `{ timestamp, width, height, isCompressed? }`
 - `StreamingResolution` — `"high"` \| `"medium"` \| `"low"`
 - `VideoCodec` — `"raw"` \| `"hvc1"`
+- `CameraFacing` — `"front"` \| `"back"`
+- `MockDeviceKitConfig` — `{ initiallyRegistered?, initialPermissionsGranted? }`
 - `CaptureError` — `"deviceDisconnected"` \| `"notStreaming"` \| `"captureInProgress"` \| `"captureFailed"`
-- `VideoFrameMetadata` — `{ timestamp, width, height }`
 - `StreamViewResizeMode` — `"contain"` \| `"cover"` \| `"stretch"`
 - `EMWDATPluginProps` — Config plugin options
 - Error code types: `WearablesErrorCode`, `RegistrationErrorCode`, `UnregistrationErrorCode`, `PermissionErrorCode`, `DecoderError`
@@ -345,9 +382,15 @@ Functions for simulating Meta Wearables devices during development using the SDK
 
 ```ts
 import {
-  createMockDevice,
-  removeMockDevice,
+  // Kit lifecycle
+  enableMockDeviceKit,
+  disableMockDeviceKit,
+  isMockDeviceKitEnabled,
+  // Device pairing
+  pairMockDevice,
+  unpairMockDevice,
   getMockDevices,
+  // Device simulation
   mockDevicePowerOn,
   mockDevicePowerOff,
   mockDeviceDon,
@@ -356,22 +399,32 @@ import {
   mockDeviceUnfold,
   mockDeviceSetCameraFeed,
   mockDeviceSetCapturedImage,
+  mockDeviceSetCameraFeedFromCamera,
+  // Permission mocking
+  mockSetPermissionStatus,
+  mockSetPermissionRequestResult,
 } from "expo-meta-wearables-dat";
 ```
 
-| Function                     | Signature                                        | Description                            |
-| ---------------------------- | ------------------------------------------------ | -------------------------------------- |
-| `createMockDevice`           | `() => Promise<string>`                          | Create a mock Ray-Ban Meta, returns ID |
-| `removeMockDevice`           | `(id: string) => Promise<void>`                  | Remove a mock device                   |
-| `getMockDevices`             | `() => Promise<string[]>`                        | List active mock device IDs            |
-| `mockDevicePowerOn`          | `(id: string) => Promise<void>`                  | Power on                               |
-| `mockDevicePowerOff`         | `(id: string) => Promise<void>`                  | Power off                              |
-| `mockDeviceDon`              | `(id: string) => Promise<void>`                  | Simulate putting glasses on            |
-| `mockDeviceDoff`             | `(id: string) => Promise<void>`                  | Simulate taking glasses off            |
-| `mockDeviceFold`             | `(id: string) => Promise<void>`                  | Fold hinges                            |
-| `mockDeviceUnfold`           | `(id: string) => Promise<void>`                  | Unfold hinges                          |
-| `mockDeviceSetCameraFeed`    | `(id: string, fileUrl: string) => Promise<void>` | Set camera feed video from local file  |
-| `mockDeviceSetCapturedImage` | `(id: string, fileUrl: string) => Promise<void>` | Set captured image from local file     |
+| Function                            | Signature                                             | Description                           |
+| ----------------------------------- | ----------------------------------------------------- | ------------------------------------- |
+| `enableMockDeviceKit`               | `(config?: MockDeviceKitConfig) => Promise<void>`     | Enable mock kit with optional config  |
+| `disableMockDeviceKit`              | `() => Promise<void>`                                 | Disable mock kit and remove fakes     |
+| `isMockDeviceKitEnabled`            | `() => Promise<boolean>`                              | Check if mock kit is enabled          |
+| `pairMockDevice`                    | `() => Promise<string>`                               | Pair a mock Ray-Ban Meta, returns ID  |
+| `unpairMockDevice`                  | `(id: string) => Promise<void>`                       | Unpair a mock device                  |
+| `getMockDevices`                    | `() => Promise<string[]>`                             | List active mock device IDs           |
+| `mockDevicePowerOn`                 | `(id: string) => Promise<void>`                       | Power on                              |
+| `mockDevicePowerOff`                | `(id: string) => Promise<void>`                       | Power off                             |
+| `mockDeviceDon`                     | `(id: string) => Promise<void>`                       | Simulate putting glasses on           |
+| `mockDeviceDoff`                    | `(id: string) => Promise<void>`                       | Simulate taking glasses off           |
+| `mockDeviceFold`                    | `(id: string) => Promise<void>`                       | Fold hinges                           |
+| `mockDeviceUnfold`                  | `(id: string) => Promise<void>`                       | Unfold hinges                         |
+| `mockDeviceSetCameraFeed`           | `(id: string, fileUrl: string) => Promise<void>`      | Set camera feed from local video file |
+| `mockDeviceSetCapturedImage`        | `(id: string, fileUrl: string) => Promise<void>`      | Set captured image from local file    |
+| `mockDeviceSetCameraFeedFromCamera` | `(id: string, facing: CameraFacing) => Promise<void>` | Use phone camera as mock feed         |
+| `mockSetPermissionStatus`           | `(permission, status) => Promise<void>`               | Set mock permission check result      |
+| `mockSetPermissionRequestResult`    | `(permission, result) => Promise<void>`               | Set mock permission request result    |
 
 ## Example App
 
@@ -397,6 +450,31 @@ The `example/` directory contains a full demo app:
    ```
 
 > Requires a physical device with a paired Meta Wearables device.
+
+## Upgrading to 1.2.0 (SDK 0.6)
+
+1.2.0 migrates to Meta Wearables DAT SDK 0.6, introducing a session-based streaming model.
+
+**Deprecated (removed):**
+
+- `startStream(config?)` — use `createSession()` → `startSession(id)` → `addStreamToSession(id, config)`
+- `stopStream()` — use `stopSession(sessionId)`
+- `getStreamState()` — observe stream state via `onStreamStateChange` event
+- `streamState` and `lastError` from hook return — use events and `deviceSessionStates`/`deviceSessionErrors`
+- `SessionState` type — replaced by `DeviceSessionState`
+- `createMockDevice()` / `removeMockDevice()` — use `enableMockDeviceKit()` + `pairMockDevice()` / `unpairMockDevice()`
+
+**Added:**
+
+- Session management: `createSession`, `startSession`, `stopSession`, `addStreamToSession`, `removeStreamFromSession`
+- `DeviceSessionState`, `DeviceSessionErrorCode`, `CapabilityState` types
+- `compressVideo` and `skipAppLaunch` in `StreamSessionConfig`
+- `isCompressed` in `VideoFrameMetadata`
+- `rayBanMetaOptics` device type
+- Mock device kit lifecycle: `enableMockDeviceKit`, `disableMockDeviceKit`, `isMockDeviceKitEnabled`
+- Mock permissions: `mockSetPermissionStatus`, `mockSetPermissionRequestResult`
+- Mock phone camera: `mockDeviceSetCameraFeedFromCamera` with `CameraFacing` type
+- New events: `onDeviceSessionError`, `onCapabilityStateChange`
 
 ## Troubleshooting
 

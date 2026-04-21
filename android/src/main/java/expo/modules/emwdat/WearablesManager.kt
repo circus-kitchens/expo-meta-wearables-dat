@@ -3,6 +3,11 @@ package expo.modules.emwdat
 import android.app.Activity
 import android.content.Context
 import com.meta.wearable.dat.core.Wearables
+import com.meta.wearable.dat.core.session.DeviceSessionState
+import com.meta.wearable.dat.core.session.Session
+import com.meta.wearable.dat.core.session.SessionError
+import com.meta.wearable.dat.core.selectors.AutoDeviceSelector
+import com.meta.wearable.dat.core.selectors.SpecificDeviceSelector
 import com.meta.wearable.dat.core.types.DeviceCompatibility
 import com.meta.wearable.dat.core.types.DeviceIdentifier
 import com.meta.wearable.dat.core.types.DeviceType
@@ -10,10 +15,10 @@ import com.meta.wearable.dat.core.types.LinkState
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
 import com.meta.wearable.dat.core.types.RegistrationState
-import com.meta.wearable.dat.core.session.SessionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 typealias EventEmitter = (String, Map<String, Any>) -> Unit
 
@@ -30,7 +35,11 @@ object WearablesManager {
     private var registrationJob: Job? = null
     private var devicesJob: Job? = null
     private var deviceMetadataJobs: MutableMap<DeviceIdentifier, Job> = mutableMapOf()
-    private var deviceSessionStateJobs: MutableMap<DeviceIdentifier, Job> = mutableMapOf()
+
+    // Device sessions
+    private val sessions: MutableMap<String, Session> = mutableMapOf()
+    private val sessionStateJobs: MutableMap<String, Job> = mutableMapOf()
+    private val sessionErrorJobs: MutableMap<String, Job> = mutableMapOf()
 
     // Cached state
     var currentRegistrationState: String = "unavailable"
@@ -104,8 +113,6 @@ object WearablesManager {
         for (deviceId in removedDevices) {
             deviceMetadataJobs[deviceId]?.cancel()
             deviceMetadataJobs.remove(deviceId)
-            deviceSessionStateJobs[deviceId]?.cancel()
-            deviceSessionStateJobs.remove(deviceId)
             deviceNames.remove(deviceId)
             deviceCompatibilities.remove(deviceId)
             deviceLinkStates.remove(deviceId)
@@ -147,17 +154,6 @@ object WearablesManager {
                 }
             }
 
-            // Collect device session state
-            deviceSessionStateJobs[deviceId] = currentScope.launch {
-                Wearables.getDeviceSessionState(deviceId).collect { sessionState ->
-                    val mapped = mapSessionState(sessionState)
-                    emitEvent("onDeviceSessionStateChange", mapOf(
-                        "deviceId" to deviceId.toString(),
-                        "sessionState" to mapped
-                    ))
-                }
-            }
-
             logger.debug("Manager", "Added device listeners", mapOf("deviceId" to deviceId.toString()))
         }
 
@@ -168,6 +164,101 @@ object WearablesManager {
     private fun emitDeviceList() {
         emitEvent("onDevicesChange", mapOf(
             "devices" to currentDevices.map { id -> serializeDevice(id) }
+        ))
+    }
+
+    // MARK: - Session Management
+
+    fun createSession(deviceId: String?): String {
+        if (!isConfigured) {
+            throw IllegalStateException("Wearables SDK has not been configured. Call configure() first.")
+        }
+
+        val deviceSelector = if (deviceId != null) {
+            logger.info("Manager", "Creating session for device", mapOf("deviceId" to deviceId))
+            SpecificDeviceSelector(DeviceIdentifier(deviceId))
+        } else {
+            logger.info("Manager", "Creating session with auto device selector")
+            AutoDeviceSelector()
+        }
+
+        val session = Wearables.createSession(deviceSelector)
+        val sessionId = UUID.randomUUID().toString()
+        sessions[sessionId] = session
+
+        // Collect session state
+        val currentScope = this.scope ?: throw IllegalStateException("Module scope not available")
+        sessionStateJobs[sessionId] = currentScope.launch {
+            session.state.collect { state ->
+                handleSessionStateChange(sessionId, state)
+            }
+        }
+
+        // Collect session errors
+        sessionErrorJobs[sessionId] = currentScope.launch {
+            session.errors.collect { error ->
+                handleSessionError(sessionId, error)
+            }
+        }
+
+        logger.info("Manager", "Session created", mapOf("sessionId" to sessionId))
+        return sessionId
+    }
+
+    fun startSession(sessionId: String) {
+        val session = sessions[sessionId]
+            ?: throw IllegalArgumentException("Session not found: $sessionId")
+        logger.info("Manager", "Starting session", mapOf("sessionId" to sessionId))
+        session.start()
+    }
+
+    fun stopSession(sessionId: String) {
+        val session = sessions[sessionId]
+            ?: throw IllegalArgumentException("Session not found: $sessionId")
+        logger.info("Manager", "Stopping session", mapOf("sessionId" to sessionId))
+        session.stop()
+    }
+
+    fun getSession(sessionId: String): Session? = sessions[sessionId]
+
+    fun removeSession(sessionId: String) {
+        sessionStateJobs[sessionId]?.cancel()
+        sessionStateJobs.remove(sessionId)
+        sessionErrorJobs[sessionId]?.cancel()
+        sessionErrorJobs.remove(sessionId)
+        sessions.remove(sessionId)
+        logger.info("Manager", "Session removed", mapOf("sessionId" to sessionId))
+    }
+
+    private fun handleSessionStateChange(sessionId: String, state: DeviceSessionState) {
+        val mapped = mapDeviceSessionState(state)
+        logger.info("Manager", "Session state changed", mapOf(
+            "sessionId" to sessionId,
+            "state" to mapped
+        ))
+
+        emitEvent("onDeviceSessionStateChange", mapOf(
+            "sessionId" to sessionId,
+            "state" to mapped
+        ))
+
+        // Auto-clean stopped sessions
+        if (state == DeviceSessionState.STOPPED) {
+            removeSession(sessionId)
+        }
+    }
+
+    private fun handleSessionError(sessionId: String, error: SessionError) {
+        val mapped = mapSessionError(error)
+        logger.error("Manager", "Session error", mapOf(
+            "sessionId" to sessionId,
+            "error" to mapped
+        ))
+
+        emitEvent("onDeviceSessionError", mapOf(
+            "sessionId" to sessionId,
+            "error" to mapped,
+            "message" to error.toString()
         ))
     }
 
@@ -306,16 +397,25 @@ object WearablesManager {
         DeviceType.OAKLEY_META_HSTN -> "oakleyMetaHSTN"
         DeviceType.OAKLEY_META_VANGUARD -> "oakleyMetaVanguard"
         DeviceType.META_RAYBAN_DISPLAY -> "metaRayBanDisplay"
+        DeviceType.RAYBAN_META_OPTICS -> "rayBanMetaOptics"
         DeviceType.UNKNOWN -> "unknown"
         null -> "unknown"
         else -> "unknown"
     }
 
-    private fun mapSessionState(state: SessionState): String = when (state) {
-        SessionState.STOPPED -> "stopped"
-        SessionState.RUNNING -> "running"
-        SessionState.PAUSED -> "paused"
-        else -> "unknown"
+    private fun mapDeviceSessionState(state: DeviceSessionState): String = when (state) {
+        DeviceSessionState.IDLE -> "idle"
+        DeviceSessionState.STARTING -> "starting"
+        DeviceSessionState.STARTED -> "started"
+        DeviceSessionState.PAUSED -> "paused"
+        DeviceSessionState.STOPPING -> "stopping"
+        DeviceSessionState.STOPPED -> "stopped"
+    }
+
+    private fun mapSessionError(error: SessionError): String = when (error) {
+        SessionError.DEVICE_DISCONNECTED -> "noEligibleDevice"
+        SessionError.DEVICE_POWERED_OFF -> "noEligibleDevice"
+        else -> "unexpectedError"
     }
 
     // MARK: - Event Emission
@@ -333,8 +433,11 @@ object WearablesManager {
         devicesJob?.cancel()
         deviceMetadataJobs.values.forEach { it.cancel() }
         deviceMetadataJobs.clear()
-        deviceSessionStateJobs.values.forEach { it.cancel() }
-        deviceSessionStateJobs.clear()
+        sessionStateJobs.values.forEach { it.cancel() }
+        sessionStateJobs.clear()
+        sessionErrorJobs.values.forEach { it.cancel() }
+        sessionErrorJobs.clear()
+        sessions.clear()
         deviceNames.clear()
         deviceCompatibilities.clear()
         deviceLinkStates.clear()

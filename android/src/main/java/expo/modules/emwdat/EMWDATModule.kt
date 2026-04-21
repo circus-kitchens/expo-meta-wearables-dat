@@ -40,7 +40,9 @@ class EMWDATModule : Module() {
             "onStreamError",
             "onPermissionStatusChange",
             "onCompatibilityChange",
-            "onDeviceSessionStateChange"
+            "onDeviceSessionStateChange",
+            "onDeviceSessionError",
+            "onCapabilityStateChange"
         )
 
         OnCreate {
@@ -154,21 +156,26 @@ class EMWDATModule : Module() {
             WearablesManager.getDevice(identifier)
         }
 
-        // MARK: - Streaming
+        // MARK: - Session Management
 
-        AsyncFunction("getStreamState") {
-            StreamSessionManager.currentState
+        AsyncFunction("createSession") { deviceId: String? ->
+            WearablesManager.createSession(deviceId)
         }
 
-        AsyncFunction("startStream") { config: Map<String, Any> ->
-            val context = appContext.reactContext?.applicationContext
-                ?: throw Exception("Application context not available")
-            val deviceId = config["deviceId"] as? String
-            StreamSessionManager.startStream(context, config, deviceId)
+        AsyncFunction("startSession") { sessionId: String ->
+            WearablesManager.startSession(sessionId)
         }
 
-        AsyncFunction("stopStream") {
-            StreamSessionManager.stopStream()
+        AsyncFunction("stopSession") { sessionId: String ->
+            WearablesManager.stopSession(sessionId)
+        }
+
+        AsyncFunction("addStreamToSession") { sessionId: String, config: Map<String, Any> ->
+            StreamSessionManager.addStreamToSession(sessionId, config)
+        }
+
+        AsyncFunction("removeStreamFromSession") { sessionId: String ->
+            StreamSessionManager.removeStreamFromSession(sessionId)
         }
 
         // MARK: - Photo Capture
@@ -182,20 +189,43 @@ class EMWDATModule : Module() {
             null
         }
 
-        // MARK: - Mock Device (DEBUG only)
+        // MARK: - Mock Device Kit (DEBUG only)
 
-        AsyncFunction("createMockDevice") {
+        AsyncFunction("enableMockDeviceKit") { config: Map<String, Any> ->
             if (!isDebug) throw Exception("Mock devices are only available in debug builds")
             val context = appContext.reactContext?.applicationContext
                 ?: throw Exception("Application context not available")
-            MockDeviceManager.createMockDevice(context)
+            val initiallyRegistered = config["initiallyRegistered"] as? Boolean ?: true
+            val initialPermissionsGranted = config["initialPermissionsGranted"] as? Boolean ?: true
+            MockDeviceManager.enableMockDeviceKit(context, initiallyRegistered, initialPermissionsGranted)
         }
 
-        AsyncFunction("removeMockDevice") { id: String ->
+        AsyncFunction("disableMockDeviceKit") {
             if (!isDebug) throw Exception("Mock devices are only available in debug builds")
             val context = appContext.reactContext?.applicationContext
                 ?: throw Exception("Application context not available")
-            MockDeviceManager.removeMockDevice(context, id)
+            MockDeviceManager.disableMockDeviceKit(context)
+        }
+
+        AsyncFunction("isMockDeviceKitEnabled") {
+            if (!isDebug) throw Exception("Mock devices are only available in debug builds")
+            val context = appContext.reactContext?.applicationContext
+                ?: throw Exception("Application context not available")
+            MockDeviceManager.isMockDeviceKitEnabled(context)
+        }
+
+        AsyncFunction("pairMockDevice") {
+            if (!isDebug) throw Exception("Mock devices are only available in debug builds")
+            val context = appContext.reactContext?.applicationContext
+                ?: throw Exception("Application context not available")
+            MockDeviceManager.pairMockDevice(context)
+        }
+
+        AsyncFunction("unpairMockDevice") { deviceId: String ->
+            if (!isDebug) throw Exception("Mock devices are only available in debug builds")
+            val context = appContext.reactContext?.applicationContext
+                ?: throw Exception("Application context not available")
+            MockDeviceManager.unpairMockDevice(context, deviceId)
         }
 
         AsyncFunction("getMockDevices") {
@@ -241,6 +271,25 @@ class EMWDATModule : Module() {
         AsyncFunction("mockDeviceSetCapturedImage") { id: String, fileUrl: String ->
             if (!isDebug) throw Exception("Mock devices are only available in debug builds")
             MockDeviceManager.setCapturedImage(id, fileUrl)
+        }
+
+        AsyncFunction("mockDeviceSetCameraFeedFromCamera") { id: String, facing: String ->
+            if (!isDebug) throw Exception("Mock devices are only available in debug builds")
+            MockDeviceManager.setCameraFeedFromCamera(id, facing)
+        }
+
+        AsyncFunction("mockSetPermissionStatus") { permission: String, status: String ->
+            if (!isDebug) throw Exception("Mock devices are only available in debug builds")
+            val context = appContext.reactContext?.applicationContext
+                ?: throw Exception("Application context not available")
+            MockDeviceManager.setPermissionStatus(context, permission, status)
+        }
+
+        AsyncFunction("mockSetPermissionRequestResult") { permission: String, result: String ->
+            if (!isDebug) throw Exception("Mock devices are only available in debug builds")
+            val context = appContext.reactContext?.applicationContext
+                ?: throw Exception("Application context not available")
+            MockDeviceManager.setPermissionRequestResult(context, permission, result)
         }
 
         // MARK: - View

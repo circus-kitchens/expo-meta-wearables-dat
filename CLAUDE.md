@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Expo native module for Meta Wearables DAT SDK 0.4 (iOS + Android). Web stubs throw "not supported".
+Expo native module for Meta Wearables DAT SDK 0.6 (iOS + Android). Web stubs throw "not supported".
 
 ## Commands
 
@@ -24,6 +24,7 @@ pnpm lint     # ESLint
 
 - Local: `docs/ios/` (SDK headers/reference)
 - Online: https://wearables.developer.meta.com/docs/develop
+- The docs site is a client-side rendered SPA — use `agent-browser` to browse API reference pages at https://wearables.developer.meta.com/docs/reference/
 
 ## Key Patterns
 
@@ -31,7 +32,9 @@ pnpm lint     # ESLint
 - iOS managers decoupled from ExpoModulesCore via callback closures
 - Platform files use `.web.ts`/`.web.tsx` suffix (Metro/webpack resolved)
 - All SDK Wearables methods are `async throws` — trust `.swiftinterface` over docs
+- Session-based streaming: `createSession()` → `DeviceSession`, attach stream via `addStream(config:)`
 - `StreamSession` is `@MainActor`; `.start()`/`.stop()` are `async` (no throws); `.capturePhoto()` is sync
+- `DeviceSessionState`: idle → starting → started → paused → stopping → stopped (terminal)
 - Publisher subscriptions use `.listen { }` (SDK extension → `AnyListenerToken`)
 
 ## Conventions

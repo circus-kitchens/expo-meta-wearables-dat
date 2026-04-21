@@ -26,6 +26,13 @@ public final class WearablesManager {
     private var deviceSessionStateTokens: [DeviceIdentifier: AnyListenerToken] = [:]
     private var urlCallbackObserver: NSObjectProtocol?
 
+    // MARK: - Device Sessions
+
+    /// Active device sessions keyed by sessionId (UUID string)
+    private var sessions: [String: DeviceSession] = [:]
+    private var sessionStateTokens: [String: AnyListenerToken] = [:]
+    private var sessionErrorTokens: [String: AnyListenerToken] = [:]
+
     // MARK: - Cached State
 
     private(set) var currentRegistrationState: RegistrationState = .unavailable
@@ -99,7 +106,7 @@ public final class WearablesManager {
 
     // MARK: - URL Handling
 
-    /// Handle a URL callback from the Meta AI app (async in SDK 0.4)
+    /// Handle a URL callback from the Meta AI app
     @discardableResult
     public func handleUrl(_ url: URL) async -> Bool {
         logger.info("Manager", "Handling URL callback", context: ["url": url.absoluteString])
@@ -162,8 +169,8 @@ public final class WearablesManager {
                 }
                 deviceCompatibilityTokens[deviceId] = compatToken
 
-                // Session state listener (async)
-                Task { @MainActor [weak self] in
+                // Session state listener (async in SDK 0.6)
+                Task { [weak self] in
                     let sessionToken = await Wearables.shared.addDeviceSessionStateListener(forDeviceId: deviceId) { [weak self] state in
                         Task { @MainActor in
                             self?.handleDeviceSessionStateChange(deviceId: deviceId, sessionState: state)
@@ -239,6 +246,108 @@ public final class WearablesManager {
         ])
     }
 
+    // MARK: - Session Management
+
+    /// Create a new device session. Returns a unique sessionId.
+    public func createSession(deviceId: String? = nil) throws -> String {
+        guard isConfigured else {
+            throw WearablesManagerError.notConfigured
+        }
+
+        let deviceSelector: any DeviceSelector
+        if let deviceId = deviceId {
+            deviceSelector = SpecificDeviceSelector(device: deviceId)
+            logger.info("Manager", "Creating session for device", context: ["deviceId": deviceId])
+        } else {
+            deviceSelector = AutoDeviceSelector(wearables: Wearables.shared)
+            logger.info("Manager", "Creating session with auto device selector")
+        }
+
+        let session = try Wearables.shared.createSession(deviceSelector: deviceSelector)
+        let sessionId = UUID().uuidString
+        sessions[sessionId] = session
+
+        // Listen to session state
+        let stateToken = session.statePublisher.listen { [weak self] state in
+            Task { @MainActor in
+                self?.handleSessionStateChange(sessionId: sessionId, state: state)
+            }
+        }
+        sessionStateTokens[sessionId] = stateToken
+
+        // Listen to session errors
+        let errorToken = session.errorPublisher.listen { [weak self] error in
+            Task { @MainActor in
+                self?.handleSessionError(sessionId: sessionId, error: error)
+            }
+        }
+        sessionErrorTokens[sessionId] = errorToken
+
+        logger.info("Manager", "Session created", context: ["sessionId": sessionId])
+        return sessionId
+    }
+
+    /// Start a previously created session.
+    public func startSession(sessionId: String) throws {
+        guard let session = sessions[sessionId] else {
+            throw WearablesManagerError.sessionNotFound(sessionId)
+        }
+        logger.info("Manager", "Starting session", context: ["sessionId": sessionId])
+        try session.start()
+    }
+
+    /// Stop a session. This is terminal — create a new session to stream again.
+    public func stopSession(sessionId: String) throws {
+        guard let session = sessions[sessionId] else {
+            throw WearablesManagerError.sessionNotFound(sessionId)
+        }
+        logger.info("Manager", "Stopping session", context: ["sessionId": sessionId])
+        session.stop()
+    }
+
+    /// Get the DeviceSession for a given sessionId (used by StreamSessionManager).
+    public func getSession(sessionId: String) -> DeviceSession? {
+        return sessions[sessionId]
+    }
+
+    /// Clean up a stopped session.
+    public func removeSession(sessionId: String) {
+        sessionStateTokens[sessionId] = nil
+        sessionErrorTokens[sessionId] = nil
+        sessions[sessionId] = nil
+        logger.info("Manager", "Session removed", context: ["sessionId": sessionId])
+    }
+
+    private func handleSessionStateChange(sessionId: String, state: DeviceSessionState) {
+        logger.info("Manager", "Session state changed", context: [
+            "sessionId": sessionId,
+            "state": String(describing: state)
+        ])
+
+        emitEvent("onDeviceSessionStateChange", [
+            "sessionId": sessionId,
+            "state": mapDeviceSessionState(state)
+        ])
+
+        // Auto-clean stopped sessions
+        if state == .stopped {
+            removeSession(sessionId: sessionId)
+        }
+    }
+
+    private func handleSessionError(sessionId: String, error: DeviceSessionError) {
+        logger.error("Manager", "Session error", context: [
+            "sessionId": sessionId,
+            "error": String(describing: error)
+        ])
+
+        emitEvent("onDeviceSessionError", [
+            "sessionId": sessionId,
+            "error": mapDeviceSessionError(error),
+            "message": error.errorDescription ?? ""
+        ])
+    }
+
     // MARK: - Registration
 
     public func startRegistration() async throws {
@@ -259,7 +368,7 @@ public final class WearablesManager {
         try await Wearables.shared.startUnregistration()
     }
 
-    // MARK: - Permissions (async throws in SDK 0.4)
+    // MARK: - Permissions
 
     public func checkPermissionStatus(_ permission: Permission) async throws -> PermissionStatus {
         logger.debug("Manager", "Checking permission status", context: ["permission": String(describing: permission)])
@@ -371,8 +480,34 @@ public final class WearablesManager {
         case .oakleyMetaHSTN: return "oakleyMetaHSTN"
         case .oakleyMetaVanguard: return "oakleyMetaVanguard"
         case .metaRayBanDisplay: return "metaRayBanDisplay"
+        case .rayBanMetaOptics: return "rayBanMetaOptics"
         case .unknown: return "unknown"
         @unknown default: return "unknown"
+        }
+    }
+
+    private func mapDeviceSessionState(_ state: DeviceSessionState) -> String {
+        switch state {
+        case .idle: return "idle"
+        case .starting: return "starting"
+        case .started: return "started"
+        case .paused: return "paused"
+        case .stopping: return "stopping"
+        case .stopped: return "stopped"
+        @unknown default: return "stopped"
+        }
+    }
+
+    private func mapDeviceSessionError(_ error: DeviceSessionError) -> String {
+        switch error {
+        case .noEligibleDevice: return "noEligibleDevice"
+        case .sessionAlreadyStopped: return "sessionAlreadyStopped"
+        case .sessionAlreadyExists: return "sessionAlreadyExists"
+        case .sessionIdle: return "sessionIdle"
+        case .capabilityAlreadyActive: return "capabilityAlreadyActive"
+        case .capabilityNotFound: return "capabilityNotFound"
+        case .unexpectedError(_): return "unexpectedError"
+        @unknown default: return "unexpectedError"
         }
     }
 
@@ -385,6 +520,9 @@ public final class WearablesManager {
         deviceLinkStateTokens.removeAll()
         deviceCompatibilityTokens.removeAll()
         deviceSessionStateTokens.removeAll()
+        sessionStateTokens.removeAll()
+        sessionErrorTokens.removeAll()
+        sessions.removeAll()
 
         if let observer = urlCallbackObserver {
             NotificationCenter.default.removeObserver(observer)
@@ -398,6 +536,7 @@ public final class WearablesManager {
 public enum WearablesManagerError: LocalizedError {
     case alreadyConfigured
     case notConfigured
+    case sessionNotFound(String)
 
     public var errorDescription: String? {
         switch self {
@@ -405,6 +544,8 @@ public enum WearablesManagerError: LocalizedError {
             return "Wearables SDK has already been configured"
         case .notConfigured:
             return "Wearables SDK has not been configured. Call configure() first."
+        case .sessionNotFound(let id):
+            return "Session not found: \(id)"
         }
     }
 }
