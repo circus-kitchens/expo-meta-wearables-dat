@@ -486,16 +486,21 @@ describe("events", () => {
     expect(result.current.devices[0].compatibility).toBe("deviceUpdateRequired");
   });
 
-  it("calls user callbacks", async () => {
+  it("tracks streamState and calls user callbacks", async () => {
     const onStreamStateChange = jest.fn();
 
-    renderHook(() => useMetaWearables({ autoConfig: false, onStreamStateChange }));
+    const { result } = renderHook(() =>
+      useMetaWearables({ autoConfig: false, onStreamStateChange })
+    );
     const listeners = getListeners();
+
+    expect(result.current.streamState).toBe("stopped");
 
     await act(async () => {
       listeners.onStreamStateChange({ state: "streaming" });
     });
 
+    expect(result.current.streamState).toBe("streaming");
     expect(onStreamStateChange).toHaveBeenCalledWith("streaming");
   });
 

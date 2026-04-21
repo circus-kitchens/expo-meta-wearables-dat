@@ -15,6 +15,7 @@ import type {
   PhotoCaptureFormat,
   RegistrationState,
   StreamSessionConfig,
+  StreamSessionState,
   UseMetaWearablesOptions,
   UseMetaWearablesReturn,
 } from "./EMWDAT.types";
@@ -99,6 +100,7 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
     Record<string, { error: DeviceSessionErrorCode; message?: string }>
   >({});
   const [capabilityStates, setCapabilityStates] = useState<Record<string, CapabilityState>>({});
+  const [streamState, setStreamState] = useState<StreamSessionState>("stopped");
 
   // Sync helpers — update both ref and state
   const syncIsConfigured = useCallback((v: boolean) => {
@@ -136,6 +138,7 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
             .catch(() => {});
         } else {
           syncPermissionStatus("denied");
+          setStreamState("stopped");
           setDeviceSessionStates({});
           setDeviceSessionErrors({});
           setCapabilityStates({});
@@ -152,6 +155,7 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
       }),
 
       addListener("onStreamStateChange", (e) => {
+        setStreamState(e.state);
         callbacksRef.current.onStreamStateChange?.(e.state);
       }),
 
@@ -447,6 +451,7 @@ export function useMetaWearables(options: UseMetaWearablesOptions = {}): UseMeta
     deviceSessionStates,
     deviceSessionErrors,
     capabilityStates,
+    streamState,
 
     // Actions — configuration
     configure,

@@ -302,6 +302,7 @@ export interface UseMetaWearablesReturn {
   deviceSessionStates: Record<string, DeviceSessionState>;
   deviceSessionErrors: Record<string, { error: DeviceSessionErrorCode; message?: string }>;
   capabilityStates: Record<string, CapabilityState>;
+  streamState: StreamSessionState;
 
   // Actions — configuration
   configure: () => Promise<void>;
