@@ -1,3 +1,9 @@
+# [1.3.0](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v1.2.0...v1.3.0) (2026-04-21)
+
+### Features
+
+- expose streamState from useMetaWearables hook ([5d17bca](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/5d17bcae0540ec74af4a3f3bcaa1aee3ebfb79ae))
+
 # [1.2.0](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v1.1.0...v1.2.0) (2026-04-21)
 
 ### Features
