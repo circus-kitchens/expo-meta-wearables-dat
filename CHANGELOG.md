@@ -1,3 +1,9 @@
+# [1.2.0](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v1.1.0...v1.2.0) (2026-04-21)
+
+### Features
+
+- migrate to Meta Wearables DAT SDK 0.6 with session-based streaming ([244503e](https://github.com/circus-kitchens/expo-meta-wearables-dat/commit/244503ee3c3ec77ba6ace5d1927194df953c8ea8))
+
 # [1.1.0](https://github.com/circus-kitchens/expo-meta-wearables-dat/compare/v1.0.1...v1.1.0) (2026-03-12)
 
 ### Bug Fixes
