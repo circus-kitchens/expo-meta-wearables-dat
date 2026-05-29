@@ -11,7 +11,7 @@ import com.meta.wearable.dat.camera.Stream
 import com.meta.wearable.dat.camera.types.CaptureError
 import com.meta.wearable.dat.camera.types.PhotoData
 import com.meta.wearable.dat.camera.types.StreamConfiguration
-import com.meta.wearable.dat.camera.types.StreamSessionState
+import com.meta.wearable.dat.camera.types.StreamState
 import com.meta.wearable.dat.camera.types.VideoFrame
 import com.meta.wearable.dat.camera.types.VideoQuality
 import kotlinx.coroutines.CoroutineScope
@@ -85,6 +85,9 @@ object StreamSessionManager {
         streams[sessionId] = stream
 
         val currentScope = scope ?: throw IllegalStateException("Module scope not available")
+
+        // Start the stream (required in 0.7+)
+        currentScope.launch { stream.start() }
 
         // Collect video frames
         videoJobs[sessionId] = currentScope.launch {
@@ -218,7 +221,7 @@ object StreamSessionManager {
 
     // MARK: - State Handling
 
-    private fun handleStateChange(sessionId: String, state: StreamSessionState) {
+    private fun handleStateChange(sessionId: String, state: StreamState) {
         val mapped = mapStreamState(state)
         logger.info("StreamSession", "State changed", mapOf(
             "sessionId" to sessionId,
@@ -317,13 +320,14 @@ object StreamSessionManager {
 
     // MARK: - Mapping Helpers
 
-    private fun mapStreamState(state: StreamSessionState): String = when (state) {
-        StreamSessionState.STOPPED -> "stopped"
-        StreamSessionState.STARTING -> "starting"
-        StreamSessionState.STARTED -> "starting"
-        StreamSessionState.STREAMING -> "streaming"
-        StreamSessionState.STOPPING -> "stopping"
-        StreamSessionState.CLOSED -> "stopped"
+    private fun mapStreamState(state: StreamState): String = when (state) {
+        StreamState.STOPPED -> "stopped"
+        StreamState.STARTING -> "starting"
+        StreamState.STARTED -> "starting"
+        StreamState.STREAMING -> "streaming"
+        StreamState.STOPPING -> "stopping"
+        StreamState.CLOSED -> "stopped"
+        else -> "stopped"
     }
 
     // MARK: - Cleanup

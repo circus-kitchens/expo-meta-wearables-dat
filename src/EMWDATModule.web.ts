@@ -115,6 +115,15 @@ class EMWDATWebModule extends NativeModule<EMWDATModuleEvents> {
   mockSetPermissionRequestResult(): Promise<void> {
     unsupported();
   }
+  addDisplayToSession(): Promise<void> {
+    unsupported();
+  }
+  removeDisplayFromSession(): Promise<void> {
+    unsupported();
+  }
+  sendDisplayContent(): Promise<void> {
+    unsupported();
+  }
 }
 
 /** Web module — all methods throw "not supported". */
@@ -232,5 +241,16 @@ export async function mockSetPermissionStatus(): Promise<void> {
   unsupported();
 }
 export async function mockSetPermissionRequestResult(): Promise<void> {
+  unsupported();
+}
+
+// Display
+export async function addDisplayToSession(): Promise<void> {
+  unsupported();
+}
+export async function removeDisplayFromSession(): Promise<void> {
+  unsupported();
+}
+export async function sendDisplayContent(): Promise<void> {
   unsupported();
 }

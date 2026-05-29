@@ -72,6 +72,9 @@ describe("configure", () => {
     await act(async () => {
       renderHook(() => useMetaWearables());
     });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     expect(m.configure).toHaveBeenCalledTimes(1);
   });
 
@@ -292,11 +295,15 @@ describe("session-based streaming", () => {
     await configureRegistered(result);
 
     await act(async () => {
-      await result.current.addStreamToSession("session-123", { resolution: "high" });
+      await result.current.addStreamToSession("session-123", {
+        resolution: "high",
+      });
     });
 
     expect(m.checkPermissionStatus).toHaveBeenCalledWith("camera");
-    expect(m.addStreamToSession).toHaveBeenCalledWith("session-123", { resolution: "high" });
+    expect(m.addStreamToSession).toHaveBeenCalledWith("session-123", {
+      resolution: "high",
+    });
   });
 
   it("addStreamToSession requests permission if denied", async () => {
@@ -392,13 +399,19 @@ describe("events", () => {
     const listeners = getListeners();
 
     await act(async () => {
-      listeners.onDeviceSessionStateChange({ sessionId: "s1", state: "started" });
+      listeners.onDeviceSessionStateChange({
+        sessionId: "s1",
+        state: "started",
+      });
     });
 
     expect(result.current.deviceSessionStates).toEqual({ s1: "started" });
 
     await act(async () => {
-      listeners.onDeviceSessionStateChange({ sessionId: "s1", state: "stopped" });
+      listeners.onDeviceSessionStateChange({
+        sessionId: "s1",
+        state: "stopped",
+      });
     });
 
     expect(result.current.deviceSessionStates).toEqual({});
@@ -514,10 +527,11 @@ describe("events", () => {
 
     const { unmount } = renderHook(() => useMetaWearables({ autoConfig: false }));
 
-    // 12 events: registration, devices, linkState, streamState, videoFrame,
+    // 15 events: registration, devices, linkState, streamState, videoFrame,
     // photoCaptured, streamError, permissionStatus, compatibility,
-    // deviceSessionState, deviceSessionError, capabilityState
-    expect(removeFns.length).toBe(12);
+    // deviceSessionState, deviceSessionError, capabilityState,
+    // displayStateChange, displayInteraction, displayError
+    expect(removeFns.length).toBe(15);
 
     unmount();
 

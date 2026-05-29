@@ -200,6 +200,58 @@ export type PermissionErrorCode =
 
 export type WearablesHandleURLErrorCode = "registrationError" | "unregistrationError";
 
+// =============================================================================
+// DISPLAY TYPES
+// =============================================================================
+
+export type DisplayState = "stopped" | "starting" | "started" | "stopping";
+
+export type DisplayErrorCode =
+  | "capabilityDenied"
+  | "deviceDisconnected"
+  | "invalidSessionState"
+  | "renderingFailed"
+  | "unexpectedError";
+
+export type DisplayContentDirection = "column" | "row";
+export type DisplayTextStyle = "heading" | "body" | "meta";
+export type DisplayTextColor = "primary" | "secondary";
+export type DisplayButtonStyle = "primary" | "secondary" | "outline";
+export type DisplayImageSizePreset = "icon" | "fill";
+export type DisplayIconStyle = "filled" | "outline";
+
+export type DisplayContentNode =
+  | {
+      type: "flexBox";
+      direction?: DisplayContentDirection;
+      gap?: number;
+      paddingAll?: number;
+      onPressId?: string;
+      children: DisplayContentNode[];
+    }
+  | {
+      type: "text";
+      content: string;
+      style?: DisplayTextStyle;
+      color?: DisplayTextColor;
+    }
+  | {
+      type: "button";
+      label: string;
+      style?: DisplayButtonStyle;
+      onPressId: string;
+    }
+  | {
+      type: "image";
+      uri: string;
+      sizePreset?: DisplayImageSizePreset;
+    }
+  | {
+      type: "icon";
+      name: string;
+      style?: DisplayIconStyle;
+    };
+
 /** Discriminated union — errors with associated values carry extra fields. */
 export type StreamSessionError =
   | { type: "internalError" }
@@ -253,6 +305,9 @@ export type EMWDATModuleEvents = {
     message?: string;
   }) => void;
   onCapabilityStateChange: (payload: { sessionId: string; state: CapabilityState }) => void;
+  onDisplayStateChange: (payload: { sessionId: string; state: DisplayState }) => void;
+  onDisplayInteraction: (payload: { sessionId: string; interactionId: string }) => void;
+  onDisplayError: (payload: { sessionId: string; error: DisplayErrorCode }) => void;
 };
 
 export type EMWDATEventName = keyof EMWDATModuleEvents;
@@ -278,6 +333,9 @@ export interface MetaWearablesCallbacks {
     message?: string
   ) => void;
   onCapabilityStateChange?: (sessionId: string, state: CapabilityState) => void;
+  onDisplayStateChange?: (sessionId: string, state: DisplayState) => void;
+  onDisplayInteraction?: (sessionId: string, interactionId: string) => void;
+  onDisplayError?: (sessionId: string, error: DisplayErrorCode) => void;
 }
 
 // =============================================================================
@@ -328,6 +386,12 @@ export interface UseMetaWearablesReturn {
   removeStreamFromSession: (sessionId: string) => Promise<void>;
   capturePhoto: (format?: PhotoCaptureFormat) => Promise<void>;
 
+  // Actions — display
+  displayStates: Record<string, DisplayState>;
+  addDisplayToSession: (sessionId: string) => Promise<void>;
+  removeDisplayFromSession: (sessionId: string) => Promise<void>;
+  sendDisplayContent: (sessionId: string, contentTree: DisplayContentNode) => Promise<void>;
+
   // Actions — mock device kit
   enableMockDeviceKit: (config?: MockDeviceKitConfig) => Promise<void>;
   disableMockDeviceKit: () => Promise<void>;
@@ -369,4 +433,6 @@ export interface EMWDATPluginProps {
   bluetoothUsageDescription?: string;
   /** GitHub token for accessing Meta Wearables Maven packages. Falls back to GITHUB_TOKEN env var. */
   githubToken?: string;
+  /** Enable the Device Access Toolkit App Model (DAM). Required for Display capability. Default: false. */
+  damEnabled?: boolean;
 }
