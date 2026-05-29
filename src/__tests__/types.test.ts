@@ -3,6 +3,10 @@ import type {
   StreamSessionError,
   StreamSessionConfig,
   CaptureError,
+  DisplayState,
+  DisplayErrorCode,
+  DisplayContentNode,
+  EMWDATPluginProps,
 } from "../EMWDAT.types";
 
 describe("v0.5 type changes", () => {
@@ -35,5 +39,78 @@ describe("v0.5 type changes", () => {
       "captureFailed",
     ];
     expect(errors).toHaveLength(4);
+  });
+});
+
+describe("v0.7 Display types", () => {
+  it("DisplayState accepts all expected values", () => {
+    const states: DisplayState[] = ["stopped", "starting", "started", "stopping"];
+    expect(states).toHaveLength(4);
+  });
+
+  it("DisplayErrorCode accepts all expected values", () => {
+    const codes: DisplayErrorCode[] = [
+      "capabilityDenied",
+      "deviceDisconnected",
+      "invalidSessionState",
+      "renderingFailed",
+      "unexpectedError",
+    ];
+    expect(codes).toHaveLength(5);
+  });
+
+  it("DisplayContentNode flexBox with children", () => {
+    const node: DisplayContentNode = {
+      type: "flexBox",
+      direction: "column",
+      gap: 12,
+      paddingAll: 16,
+      children: [
+        { type: "text", content: "Hello", style: "heading" },
+        {
+          type: "button",
+          label: "Continue",
+          style: "primary",
+          onPressId: "btn-continue",
+        },
+      ],
+    };
+    expect(node.type).toBe("flexBox");
+    if (node.type === "flexBox") {
+      expect(node.children).toHaveLength(2);
+    }
+  });
+
+  it("DisplayContentNode text node", () => {
+    const node: DisplayContentNode = {
+      type: "text",
+      content: "Hello, glasses!",
+      style: "body",
+      color: "secondary",
+    };
+    expect(node.type).toBe("text");
+    if (node.type === "text") {
+      expect(node.content).toBe("Hello, glasses!");
+    }
+  });
+
+  it("DisplayContentNode button node requires onPressId", () => {
+    const node: DisplayContentNode = {
+      type: "button",
+      label: "Tap me",
+      onPressId: "action-1",
+    };
+    expect(node.type).toBe("button");
+    if (node.type === "button") {
+      expect(node.onPressId).toBe("action-1");
+    }
+  });
+
+  it("EMWDATPluginProps accepts damEnabled", () => {
+    const props: EMWDATPluginProps = {
+      urlScheme: "myapp",
+      damEnabled: true,
+    };
+    expect(props.damEnabled).toBe(true);
   });
 });

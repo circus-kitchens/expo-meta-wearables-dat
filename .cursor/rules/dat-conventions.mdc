@@ -1,29 +1,52 @@
 ---
-description: DAT SDK conventions for android development
+description: DAT SDK 0.7 conventions for Android development in this Expo module
 alwaysApply: true
 ---
 
-
-# DAT SDK Conventions (Android)
+# DAT SDK Conventions (Android, v0.7)
 
 ## Architecture
 
-The SDK is organized into three modules:
-- **mwdat-core**: Device discovery, registration, permissions, device selectors
-- **mwdat-camera**: StreamSession, VideoFrame, photo capture
-- **mwdat-mockdevice**: MockDeviceKit for testing without hardware
+The SDK is organized into four modules:
 
-## Kotlin Patterns
+- **mwdat-core**: Device discovery, registration, permissions, device selectors, `DeviceSession`
+- **mwdat-camera**: `Stream` capability, `VideoFrame`, photo capture
+- **mwdat-display**: Display capability, declarative UI DSL (`ContentScope`)
+- **mwdat-mockdevice**: MockDeviceKit for testing without hardware (camera only — no display simulation)
+
+## Session model
+
+```kotlin
+Wearables.createSession(deviceSelector).fold(
+    onSuccess = { session -> /* use session */ },
+    onFailure = { error -> /* handle */ }
+)
+session.start()
+val stream = session.addStream(StreamConfiguration(VideoQuality.MEDIUM, 24, false))
+stream.start() // required in 0.7
+// Collect from stream.videoStream, stream.state, stream.errorStream
+```
+
+Display (requires DAM in manifest):
+
+```kotlin
+session.addDisplay(DisplayConfiguration()).fold(
+    onSuccess = { display ->
+        display.sendContent { /* ContentScope DSL */ }
+    },
+    onFailure = { /* DisplayError */ }
+)
+```
+
+## Kotlin patterns
 
 - Use `suspend` functions for async operations — no callbacks
 - Use `StateFlow` / `Flow` for observing state changes
 - Use `DatResult<T, E>` for error handling — not exceptions
 - Prefer immutable collections
-- Use `sealed interface` for state hierarchies
+- `RegistrationState` and `PermissionStatus` are plain enums in 0.7 (`REGISTERED`, `GRANTED`, …)
 
-## Error Handling
-
-The SDK uses `DatResult<T, E>` for type-safe error handling:
+## Error handling
 
 ```kotlin
 val result = Wearables.someOperation()
@@ -31,50 +54,55 @@ result.fold(
     onSuccess = { value -> /* handle success */ },
     onFailure = { error -> /* handle error */ }
 )
-
-// Or partial handling:
-result.onSuccess { value -> /* handle success */ }
-result.onFailure { error -> /* handle error */ }
 ```
 
-Do **not** use `getOrThrow()` — always handle both paths.
+Do **not** use `getOrThrow()` in bridge code — always handle both paths.
 
-## Naming Conventions
+## Key type renames (0.6 → 0.7)
 
-| Suffix | Purpose | Example |
-|--------|---------|---------|
-| `*Manager` | Long-lived resource management | `RegistrationManager` |
-| `*Session` | Short-lived flow component | `StreamSession` |
-| `*Result` | DatResult type aliases | `RegistrationResult` |
-| `*Error` | Error sealed interfaces | `WearablesError` |
-
-Methods: `get*`, `set*`, `check*`, `request*`, `observe*`
+| 0.6 | 0.7 |
+|-----|-----|
+| `Session` | `DeviceSession` |
+| `SessionError` | `DeviceSessionError` |
+| `StreamSessionState` | `StreamState` |
 
 ## Imports
 
 ```kotlin
-import com.meta.wearable.dat.core.Wearables          // Entry point
-import com.meta.wearable.dat.camera.StreamSession     // Camera streaming
-import com.meta.wearable.dat.camera.types.*            // VideoFrame, PhotoData, etc.
+import com.meta.wearable.dat.core.Wearables
+import com.meta.wearable.dat.core.session.DeviceSession
+import com.meta.wearable.dat.core.types.DeviceSessionError
+import com.meta.wearable.dat.camera.Stream
+import com.meta.wearable.dat.camera.types.*
+import com.meta.wearable.dat.display.Display
+import com.meta.wearable.dat.display.views.*
 ```
 
 For testing:
+
 ```kotlin
-import com.meta.wearable.dat.mockdevice.MockDeviceKit  // MockDeviceKit
+import com.meta.wearable.dat.mockdevice.MockDeviceKit
 ```
 
-## Key Types
+## Expo bridge files (this repo)
 
-- `Wearables` — SDK entry point. Call `Wearables.initialize(context)` at startup
-- `StreamSession` — Camera streaming session
-- `VideoFrame` — Individual video frame with bitmap data
-- `AutoDeviceSelector` — Auto-selects the best available device
-- `SpecificDeviceSelector` — Selects a specific device by identifier
-- `StreamConfiguration` — Configure video quality, frame rate
-- `MockDeviceKit` — Factory for creating simulated devices in tests
+- `WearablesManager.kt` — sessions, registration, devices
+- `StreamSessionManager.kt` — camera capability
+- `DisplaySessionManager.kt` / `DisplayContentBuilder.kt` — display capability + JSON→DSL
+
+## Dependencies (this repo)
+
+```gradle
+implementation "com.meta.wearable:mwdat-core:0.7.0"
+implementation "com.meta.wearable:mwdat-camera:0.7.0"
+implementation "com.meta.wearable:mwdat-display:0.7.0"
+implementation "com.meta.wearable:mwdat-mockdevice:0.7.0"
+```
+
+Requires GitHub Packages Maven with `GITHUB_ACTOR` / `GITHUB_TOKEN`.
 
 ## Links
 
-- [Android API Reference](https://wearables.developer.meta.com/docs/reference/android/dat/0.5)
-- [Developer Documentation](https://wearables.developer.meta.com/docs/develop/)
+- [Android API Reference (0.7)](https://wearables.developer.meta.com/docs/reference/android/dat/0.7)
+- [Display docs](https://wearables.developer.meta.com/docs/develop/)
 - [GitHub Repository](https://github.com/facebook/meta-wearables-dat-android)

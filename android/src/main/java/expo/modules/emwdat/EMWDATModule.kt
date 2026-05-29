@@ -42,7 +42,10 @@ class EMWDATModule : Module() {
             "onCompatibilityChange",
             "onDeviceSessionStateChange",
             "onDeviceSessionError",
-            "onCapabilityStateChange"
+            "onCapabilityStateChange",
+            "onDisplayStateChange",
+            "onDisplayInteraction",
+            "onDisplayError"
         )
 
         OnCreate {
@@ -54,10 +57,13 @@ class EMWDATModule : Module() {
             WearablesManager.setScope(moduleScope)
             StreamSessionManager.setEventEmitter(emitter)
             StreamSessionManager.setScope(moduleScope)
+            DisplaySessionManager.setEventEmitter(emitter)
+            DisplaySessionManager.setScope(moduleScope)
         }
 
         OnDestroy {
             logger.info("Module", "Module destroyed")
+            DisplaySessionManager.destroy()
             StreamSessionManager.destroy()
             WearablesManager.cleanup()
             moduleScope.cancel()
@@ -290,6 +296,22 @@ class EMWDATModule : Module() {
             val context = appContext.reactContext?.applicationContext
                 ?: throw Exception("Application context not available")
             MockDeviceManager.setPermissionRequestResult(context, permission, result)
+        }
+
+        // MARK: - Display
+
+        AsyncFunction("addDisplayToSession") { sessionId: String ->
+            DisplaySessionManager.addDisplayToSession(sessionId)
+        }
+
+        AsyncFunction("removeDisplayFromSession") { sessionId: String ->
+            DisplaySessionManager.removeDisplayFromSession(sessionId)
+        }
+
+        AsyncFunction("sendDisplayContent") { sessionId: String, contentTree: Map<String, Any> ->
+            runBlocking {
+                DisplaySessionManager.sendDisplayContent(sessionId, contentTree)
+            }
         }
 
         // MARK: - View

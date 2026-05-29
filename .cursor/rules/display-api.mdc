@@ -1,0 +1,114 @@
+---
+description: Display capability, DAM, JSON content tree bridge, and Meta Ray-Ban Display requirements
+globs: **/*Display*, **/EMWDAT.types.ts, **/useMetaWearables.ts, **/EMWDATModule.ts, **/plugin/**
+---
+
+# Display API (DAT 0.7)
+
+Guide for the Display capability bridge in **expo-meta-wearables-dat**.
+
+## Overview
+
+Display renders declarative UI on **Meta Ray-Ban Display** glasses. This package exposes it to React Native via a JSON content tree that native code converts to the SDK DSL.
+
+```
+JS DisplayContentNode → DisplayContentBuilder → mwdat-display / MWDATDisplay → lenses
+Captouch tap → onDisplayInteraction { interactionId }
+```
+
+## Prerequisites
+
+| Requirement | Version |
+|-------------|---------|
+| DAT SDK | 0.7.0 |
+| Meta AI app | V272+ |
+| Display firmware | V125+ |
+| Hardware | Meta Ray-Ban Display |
+| DAM | `damEnabled: true` in config plugin |
+
+MockDeviceKit **does not** simulate display rendering.
+
+## Config plugin (DAM)
+
+```json
+["expo-meta-wearables-dat", {
+  "urlScheme": "myapp",
+  "damEnabled": true
+}]
+```
+
+- Android: `<meta-data android:name="com.meta.wearable.mwdat.DAM_ENABLED" android:value="true" />`
+- iOS: `MWDAT.DAMEnabled = true` in Info.plist
+
+Camera-only apps leave `damEnabled` unset (default `false`).
+
+## TypeScript API
+
+```typescript
+await addDisplayToSession(sessionId);
+await sendDisplayContent(sessionId, contentTree);
+await removeDisplayFromSession(sessionId);
+
+addListener("onDisplayStateChange", ({ sessionId, state }) => { /* stopped|starting|started|stopping */ });
+addListener("onDisplayInteraction", ({ sessionId, interactionId }) => { /* onPressId from tree */ });
+addListener("onDisplayError", ({ sessionId, error }) => { /* capabilityDenied, invalidSessionState, ... */ });
+```
+
+Root node of `contentTree` must be `type: "flexBox"`.
+
+## DisplayContentNode (MVP)
+
+Defined in `src/EMWDAT.types.ts`:
+
+| type | key fields |
+|------|------------|
+| `flexBox` | `direction?`, `gap?`, `paddingAll?`, `onPressId?`, `children[]` |
+| `text` | `content`, `style?` (heading/body/meta), `color?` |
+| `button` | `label`, `style?`, `onPressId` (required) |
+| `image` | `uri`, `sizePreset?` (icon/fill) |
+| `icon` | `name`, `style?` (filled/outline) |
+
+Tap handling: set `onPressId` on `flexBox` or `button`; native emits `onDisplayInteraction` — **no JS callbacks in native code**.
+
+## Native implementation
+
+### Android
+
+- `DisplaySessionManager.kt` — `session.addDisplay()`, state flow, `display.sendContent { }`
+- `DisplayContentBuilder.kt` — recursive `ContentScope` builder from `Map<String, Any>`
+
+### iOS
+
+- `DisplaySessionManager.swift` — `session.addDisplay()`, `await display.start()`, `display.send(rootView)`
+- `DisplayContentBuilder.swift` — builds `FlexBox`, `Text`, `Button`, etc. from `[String: Any]`
+
+Both wired in `EMWDATModule` with events `onDisplayStateChange`, `onDisplayInteraction`, `onDisplayError`.
+
+## Usage flow
+
+1. `configure()` → register → `createSession()` → `startSession()`
+2. `addDisplayToSession(sessionId)`
+3. Wait for `onDisplayStateChange` → `state === "started"`
+4. `sendDisplayContent(sessionId, tree)`
+5. Handle `onDisplayInteraction` for taps
+6. `removeDisplayFromSession(sessionId)` or `stopSession(sessionId)`
+
+## Adding a new node type
+
+1. Extend `DisplayContentNode` union in `src/EMWDAT.types.ts`
+2. Add builder branch in `DisplayContentBuilder.kt` and `DisplayContentBuilder.swift`
+3. Add type test in `src/__tests__/types.test.ts`
+4. Document in README Display section
+
+## Out of scope (do not implement without explicit request)
+
+- Video playback on display
+- Full icon catalog mapping
+- MockDeviceKit display simulation
+- Thermal monitoring bridge
+
+## Links
+
+- [Display developer docs](https://wearables.developer.meta.com/docs/develop/)
+- [iOS FlexBox reference (0.7)](https://wearables.developer.meta.com/docs/reference/ios_swift/dat/0.7/mwdatdisplay_flexbox)
+- Repo: [CODEX.md](../../CODEX.md), [CLAUDE.md](../../CLAUDE.md)

@@ -1,5 +1,55 @@
 # Meta Wearables DAT SDK
 
+> **This repository** is an Expo native module (`expo-meta-wearables-dat`) bridging DAT **0.7** to React Native.
+> Start with [CLAUDE.md](./CLAUDE.md) or [CODEX.md](./CODEX.md) for repo-specific architecture.
+> Full SDK API reference: https://wearables.developer.meta.com/llms.txt?full=true
+> Developer docs: https://wearables.developer.meta.com/docs/develop/
+
+## Expo module (this repo)
+
+### SDK version
+
+- **0.7.0** on Android (`mwdat-core`, `mwdat-camera`, `mwdat-display`, `mwdat-mockdevice`) and iOS (SPM products incl. `MWDATDisplay`).
+- Upstream npm `expo-meta-wearables-dat@1.3.0` targets DAT 0.6 — use a git branch or local path until a 0.7 release is published.
+
+### Capabilities
+
+| Capability    | TS entry points                             | Native managers                                  | Requires DAM             |
+| ------------- | ------------------------------------------- | ------------------------------------------------ | ------------------------ |
+| Camera stream | `addStreamToSession`, `EMWDATStreamView`    | `StreamSessionManager`                           | No                       |
+| Display UI    | `addDisplayToSession`, `sendDisplayContent` | `DisplaySessionManager`, `DisplayContentBuilder` | Yes (`damEnabled: true`) |
+
+### Display bridge
+
+JavaScript sends a `DisplayContentNode` JSON tree; native code builds the SDK declarative DSL (`flexBox`, `text`, `button`, `image`, `icon`). User taps on glasses emit `onDisplayInteraction` with the `onPressId` string — no JS callbacks cross the native boundary.
+
+Config plugin prop `damEnabled` (default `false`):
+
+- Android: `com.meta.wearable.mwdat.DAM_ENABLED`
+- iOS: `MWDAT.DAMEnabled`
+
+### 0.7 native renames (bridge code)
+
+- `Session` → `DeviceSession`, `SessionError` → `DeviceSessionError`
+- `StreamSessionState` → `StreamState`; iOS `StreamSession` → `Stream`
+- Android `RegistrationState` is a plain enum (not sealed class)
+- `Wearables.createSession()` returns `DatResult` on Android
+- Call `stream.start()` after `addStream()`; iOS `await display.start()` after `addDisplay()`
+
+### Testing Display
+
+Requires Meta Ray-Ban Display hardware, Meta AI V272+, firmware V125+. MockDeviceKit does **not** simulate display output.
+
+### Commands
+
+```bash
+pnpm install && pnpm build && pnpm test && pnpm lint
+```
+
+---
+
+# Meta Wearables DAT SDK (integration guides)
+
 > Full API reference: https://wearables.developer.meta.com/llms.txt?full=true
 > Developer docs: https://wearables.developer.meta.com/docs/develop/
 
@@ -7,10 +57,11 @@
 
 ## Architecture
 
-The SDK is organized into three modules:
+The SDK is organized into four modules:
 
 - **mwdat-core**: Device discovery, registration, permissions, device selectors
-- **mwdat-camera**: StreamSession, VideoFrame, photo capture
+- **mwdat-camera**: Stream, VideoFrame, photo capture
+- **mwdat-display**: Display capability, declarative UI on Meta Ray-Ban Display (requires DAM)
 - **mwdat-mockdevice**: MockDeviceKit for testing without hardware
 
 ## Kotlin Patterns

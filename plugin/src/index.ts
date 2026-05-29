@@ -19,6 +19,8 @@ type EMWDATPluginProps = {
   bluetoothUsageDescription?: string;
   /** GitHub token for accessing Meta Wearables Maven packages. Falls back to GITHUB_TOKEN env var. */
   githubToken?: string;
+  /** Enable the Device Access Toolkit App Model (DAM). Required for Display capability. Default: false. */
+  damEnabled?: boolean;
 };
 
 function addUniqueStringToArray(plist: Record<string, any>, key: string, value: string): void {
@@ -72,7 +74,7 @@ const withEMWDAT: ConfigPlugin<EMWDATPluginProps> = (config, props) => {
     // doesn't embed them — we add a shell script build phase to copy + sign them.
     const target = project.getFirstTarget().uuid;
     const shellScript = `
-FRAMEWORKS=("MWDATCamera" "MWDATCore" "MWDATMockDevice")
+FRAMEWORKS=("MWDATCamera" "MWDATCore" "MWDATDisplay" "MWDATMockDevice")
 for fw in "\${FRAMEWORKS[@]}"; do
   SRC="\${BUILT_PRODUCTS_DIR}/\${fw}.framework"
   DST="\${BUILT_PRODUCTS_DIR}/\${FRAMEWORKS_FOLDER_PATH}/\${fw}.framework"
@@ -92,11 +94,13 @@ done
       inputPaths: [
         '"${BUILT_PRODUCTS_DIR}/MWDATCamera.framework"',
         '"${BUILT_PRODUCTS_DIR}/MWDATCore.framework"',
+        '"${BUILT_PRODUCTS_DIR}/MWDATDisplay.framework"',
         '"${BUILT_PRODUCTS_DIR}/MWDATMockDevice.framework"',
       ],
       outputPaths: [
         '"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/MWDATCamera.framework"',
         '"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/MWDATCore.framework"',
+        '"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/MWDATDisplay.framework"',
         '"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/MWDATMockDevice.framework"',
       ],
     });
@@ -129,13 +133,16 @@ done
     plist.NSBluetoothAlwaysUsageDescription = bluetoothDescription;
 
     // MWDAT configuration dictionary
-    const mwdatConfig: Record<string, string> = {
+    const mwdatConfig: Record<string, string | boolean> = {
       AppLinkURLScheme: `${urlScheme}://`,
       MetaAppID: metaAppId,
       TeamID: "$(DEVELOPMENT_TEAM)",
     };
     if (props.clientToken) {
       mwdatConfig.ClientToken = props.clientToken;
+    }
+    if (props.damEnabled) {
+      mwdatConfig.DAMEnabled = true;
     }
     plist.MWDAT = mwdatConfig;
 
@@ -232,6 +239,19 @@ done
           $: {
             "android:name": clientTokenKey,
             "android:value": props.clientToken,
+          },
+        });
+      }
+    }
+
+    // Add DAM_ENABLED meta-data when requested
+    if (props.damEnabled) {
+      const damKey = "com.meta.wearable.mwdat.DAM_ENABLED";
+      if (!metaData.some((m: any) => m.$?.["android:name"] === damKey)) {
+        metaData.push({
+          $: {
+            "android:name": damKey,
+            "android:value": "true",
           },
         });
       }

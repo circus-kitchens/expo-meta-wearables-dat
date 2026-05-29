@@ -45,6 +45,10 @@ export {
   mockDeviceSetCameraFeedFromCamera,
   mockSetPermissionStatus,
   mockSetPermissionRequestResult,
+  // Display
+  addDisplayToSession,
+  removeDisplayFromSession,
+  sendDisplayContent,
 } from "./EMWDATModule";
 
 // Types

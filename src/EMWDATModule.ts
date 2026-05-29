@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 import type {
   CameraFacing,
   Device,
+  DisplayContentNode,
   EMWDATModuleEvents,
   LogLevel,
   MockDeviceKitConfig,
@@ -57,6 +58,11 @@ declare class EMWDATNativeModule extends NativeModule<EMWDATModuleEvents> {
   mockDeviceSetCameraFeedFromCamera(id: string, facing: string): Promise<void>;
   mockSetPermissionStatus(permission: string, status: string): Promise<void>;
   mockSetPermissionRequestResult(permission: string, result: string): Promise<void>;
+
+  // Display
+  addDisplayToSession(sessionId: string): Promise<void>;
+  removeDisplayFromSession(sessionId: string): Promise<void>;
+  sendDisplayContent(sessionId: string, contentTree: DisplayContentNode): Promise<void>;
 }
 
 /** The native EMWDAT module instance. */
@@ -270,4 +276,26 @@ export async function mockSetPermissionRequestResult(
   result: PermissionStatus
 ): Promise<void> {
   return EMWDATModule.mockSetPermissionRequestResult(permission, result);
+}
+
+// =============================================================================
+// Display
+// =============================================================================
+
+/** Attach a Display capability to a device session. Requires DAM to be enabled. */
+export async function addDisplayToSession(sessionId: string): Promise<void> {
+  return EMWDATModule.addDisplayToSession(sessionId);
+}
+
+/** Remove the Display capability from a session. */
+export async function removeDisplayFromSession(sessionId: string): Promise<void> {
+  return EMWDATModule.removeDisplayFromSession(sessionId);
+}
+
+/** Send a UI content tree to the display. The root node must be a `flexBox`. */
+export async function sendDisplayContent(
+  sessionId: string,
+  contentTree: DisplayContentNode
+): Promise<void> {
+  return EMWDATModule.sendDisplayContent(sessionId, contentTree);
 }
